@@ -16,7 +16,7 @@ If you are familiar with [**Conda**](!http://conda.pydata.org/docs/),
 I would suggest creating a virtual environnement
 and installing the dependencies in the following fashion:
 
-```python
+```
 conda create --name kaggle-tools --file requirements.txt
 
 ```
