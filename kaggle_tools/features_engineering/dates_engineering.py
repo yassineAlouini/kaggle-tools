@@ -1,4 +1,5 @@
 import pandas as pd
+import pytz
 
 
 def date_features(input_df, datetime_column='tms_gmt'):
@@ -17,3 +18,15 @@ def date_features(input_df, datetime_column='tms_gmt'):
                       week=lambda df: df.index.week,
                       woy=lambda df: df.index.weekofyear,
                       year=lambda df: df.index.year))
+
+
+def localize_datetime(input_df, timezone='Europe/Paris',
+                      datetime_column='tms_gmt'):
+    """
+    Convert datetime column from UTC to another timezone.
+    """
+    tmz = pytz.timezone(timezone)
+    df = input_df.copy()
+    return (df.set_index(datetime_column)
+              .tz_localize(pytz.utc)  #  UTC time
+              .tz_convert(tmz))  # Timezone time
