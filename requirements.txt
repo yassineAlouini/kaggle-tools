@@ -4,7 +4,7 @@ decorator==4.0.9
 dill==0.2.5
 graphviz==0.4.10
 h5py==2.6.0
-hyperopt==0.0.3.dev0
+# hyperopt==0.0.3.dev0
 ipython==5.1.0
 ipython-genutils==0.1.0
 Jinja2==2.8
