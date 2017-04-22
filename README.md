@@ -1,12 +1,12 @@
-# Kaggle tools
+<h1>Kaggle tools</h1>
 
-## About
+<h2>About</h2>
 
 This is a repository containing tools, scripts and code snippets that I often
 use in Kaggle challenges (more generally in data science and machine learning
 tasks).
 
-## Installation (Linux and OS X)
+<h2>Installation (Linux and OS X)</h2>
 
 To install the project dependencies, run:
 
@@ -34,13 +34,13 @@ way I found to do it (activate the virtual environment first):
 conda install -c https://conda.binstar.org/menpo opencv3
 ```
 
-## Contributing
+<h2>Contributing</h2>
 
 Feel free to send a link to tools that you use or make a pull request.
 
 
-## License
+<h2>License</h2>
 
 The MIT License (MIT)
 
-Copyright (c) 2016 Yassine Alouini
+Copyright (c) 2017 Yassine Alouini
