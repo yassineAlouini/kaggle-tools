@@ -1,0 +1,6 @@
+name: kaggle_tools
+channels:
+- conda-forge
+- defaults
+prefix: /home/yassine/Documents/Kaggle/kaggle_tools/kaggle_tools
+
