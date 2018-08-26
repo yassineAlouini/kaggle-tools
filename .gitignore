@@ -3,3 +3,4 @@ build/*
 *.egg-info
 .pypirc
 *__pycache__
+*.cache
