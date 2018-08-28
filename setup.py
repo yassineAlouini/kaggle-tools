@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 NAME = 'kaggle_tools'
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 AUTHOR = 'Yassine Alouini'
 DESCRIPTION = """This is a suite of tools to help you participate in various
 Kaggle competitions"""
