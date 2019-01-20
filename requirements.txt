@@ -40,7 +40,7 @@ pyparsing==2.1.7
 Python-contrib-nbextensions===alpha
 python-dateutil==2.5.3
 pytz==2016.6.1
-PyYAML==3.11
+pyyaml>=4.2b1
 pyzmq==15.4.0
 scikit-learn==0.17.1
 scipy==0.18.0
