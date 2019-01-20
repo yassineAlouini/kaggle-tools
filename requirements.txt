@@ -16,7 +16,7 @@ Keras==1.0.7
 MarkupSafe==0.23
 matplotlib==1.5.2
 missingno==0.2.4
-mistune==0.7.3
+mistune>=0.8.1
 mock==2.0.0
 nbconvert==4.2.0
 nbformat==4.0.1
