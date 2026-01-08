@@ -1,50 +1,143 @@
-<h1>Kaggle tools</h1>
+# Kaggle Tools
 
-<h2>About</h2>
+## About
 
-This is a repository containing tools, scripts and code snippets that I often
-use in Kaggle challenges and more generally in data science and machine learning
-tasks.
+A modern Python toolkit containing utilities, scripts, and code snippets commonly used in Kaggle challenges and machine learning tasks. This library provides reusable components for data science competitions, deep learning workflows, and general ML experimentation.
 
-<h2>Installation (Linux and OS X)</h2>
+## Features
 
-To install the project dependencies, run:
+- **Metrics**: Custom Keras metrics and evaluation tools
+- **Classification**: Decision tree visualization and building utilities
+- **Image Processing**: Image augmentation and preprocessing pipelines
+- **Deep Learning**: Model management and training utilities
+- **Diagnostics**: Performance monitoring and statistical analysis
+- **Scaling**: Distributed computing with Dask
+- **Submission**: Helper tools for competition submissions
 
-```pip install -r requirements```
+## Installation
 
-If you are familiar with [**Conda**](!http://conda.pydata.org/docs/),
-I would suggest creating a virtual environnement
-and installing the dependencies in the following fashion:
+### Basic Installation
 
-```
-conda create --name kaggle-tools --file requirements.txt
+Install the package using pip:
 
-```
-
-Then activate the environment with the following command:
-
-```
-source activate kaggle-tools
+```bash
+pip install kaggle-tools
 ```
 
-If you want to process images, you need to install [**OpenCV**](!http://opencv.org/). Here is the easiest
-way I found to do it (activate the virtual environment first):
+### Development Installation
+
+For development work, clone the repository and install with development dependencies:
+
+```bash
+git clone https://github.com/yassineAlouini/kaggle-tools.git
+cd kaggle-tools
+pip install -e ".[dev]"
+```
+
+### Optional Dependencies
+
+Install additional dependencies for specific features:
+
+```bash
+# For image processing
+pip install kaggle-tools[image]
+
+# For documentation
+pip install kaggle-tools[docs]
+
+# All optional dependencies
+pip install kaggle-tools[dev,image,docs]
+```
+
+### Virtual Environment (Recommended)
+
+Using a virtual environment is recommended to avoid dependency conflicts:
+
+```bash
+# Using venv
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install kaggle-tools
+
+# Using conda
+conda create -n kaggle-tools python=3.10
+conda activate kaggle-tools
+pip install kaggle-tools
+```
+
+## Requirements
+
+- Python ≥ 3.8
+- Core dependencies: keras, pandas, tensorflow, xgboost, hyperopt
+
+## Development
+
+### Running Tests
+
+```bash
+pytest
+```
+
+### Code Formatting
+
+This project uses `black` for code formatting and `ruff` for linting:
+
+```bash
+# Format code
+black kaggle_tools/
+
+# Lint code
+ruff kaggle_tools/
+
+# Type checking
+mypy kaggle_tools/
+```
+
+## Project Structure
 
 ```
-conda install -c https://conda.binstar.org/menpo opencv3
+kaggle-tools/
+├── kaggle_tools/
+│   ├── classification/      # Tree-based model utilities
+│   ├── deep_learning/       # Deep learning model management
+│   ├── diagnostic/          # Performance and statistical diagnostics
+│   ├── features_engineering/# Feature engineering tools
+│   ├── image_processing/    # Image augmentation and processing
+│   ├── metrics/             # Custom metrics for model evaluation
+│   ├── scale/               # Distributed computing tools
+│   ├── submission/          # Competition submission helpers
+│   └── tests/               # Unit tests
+├── docs/                    # Documentation
+├── pyproject.toml           # Project configuration and dependencies
+└── README.md               # This file
 ```
 
-<h2>Roadmap</h2>
+## Contributing
 
-I am planning to release an alpha version (v0.0.3) by the end of 2018. Check the ROADMAP.md file for more details.
+Contributions are welcome! Feel free to:
 
-<h2>Contributing</h2>
+- Submit bug reports and feature requests via [GitHub Issues](https://github.com/yassineAlouini/kaggle-tools/issues)
+- Submit pull requests with improvements
+- Share tools and utilities you find useful
 
-Feel free to send a link to tools that you use or make a pull request.
+### Development Setup
 
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and formatting (`pytest`, `black .`, `ruff .`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-<h2>License</h2>
+## License
 
 The MIT License (MIT)
 
-Copyright (c) 2018 Yassine Alouini
+Copyright (c) 2018-2026 Yassine Alouini
+
+See [LICENSE](LICENSE) file for details.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
