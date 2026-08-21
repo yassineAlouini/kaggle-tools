@@ -1,3 +1,5 @@
+
+
 # Kaggle Tools
 
 ## About
@@ -68,7 +70,7 @@ pip install kaggle-tools
 ## Requirements
 
 - Python ≥ 3.8
-- Core dependencies: keras, pandas, tensorflow, xgboost, hyperopt
+- Core dependencies: keras>=2.4.0, pandas>=1.0.0, tensorflow>=2.4.0, xgboost>=1.0.0, hyperopt>=0.2.0
 
 ## Development
 
