@@ -41,12 +41,14 @@ def best_threshold(
 ) -> tuple[float, float]:
     """Grid-search the decision threshold; returns ``(threshold, score)``.
 
-    Defaults to F1. Pick the threshold on OOF predictions, never on the LB.
+    Defaults to F1: binary F1 for 1-D labels, micro-F1 for a 2-D multi-label matrix.
+    Pick the threshold on OOF predictions, never on the LB.
     """
     if metric is None:
+        average = "binary" if np.ndim(y_true) == 1 else "micro"
 
         def metric(t: np.ndarray, p: np.ndarray) -> float:
-            return float(fbeta_score(t, p, beta=1.0, average="micro", zero_division=0))
+            return float(fbeta_score(t, p, beta=1.0, average=average, zero_division=0))
 
     grid = np.linspace(0.05, 0.95, 19) if thresholds is None else np.asarray(thresholds)
     y_score = np.asarray(y_score)

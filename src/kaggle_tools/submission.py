@@ -45,11 +45,12 @@ def validate_submission(sub: pd.DataFrame, sample: pd.DataFrame) -> list[str]:
     if len(sub) != len(sample):
         problems.append(f"row count {len(sub)} != sample {len(sample)}")
     id_col = sample.columns[0]
-    if id_col in sub.columns and set(sub[id_col]) != set(sample[id_col]):
+    # Compare as strings: 1 and "1" serialise to the same CSV cell.
+    if id_col in sub.columns and set(sub[id_col].astype(str)) != set(sample[id_col].astype(str)):
         problems.append(f"{id_col} values differ from sample_submission")
+    if sub.isna().any().any():
+        problems.append("submission contains NaN/missing values")
     numeric = sub.select_dtypes("number")
-    if numeric.isna().any().any():
-        problems.append("submission contains NaN")
     if not np.isfinite(numeric.to_numpy(dtype=float)).all():
         problems.append("submission contains inf")
     return problems
@@ -73,8 +74,11 @@ class ProgressiveSubmission:
     ...     with sub.stage("ensemble"):
     ...         sub.write(ensemble_preds)
 
-    A failing stage is logged (with traceback) and swallowed, so the last good
+    Inside a ``stage``, ``write`` is only *staged*: the file is replaced when the stage
+    exits cleanly, so a stage that writes and then raises never leaves its output on
+    disk. A failing stage is logged (with traceback) and swallowed, so the last good
     submission stays on disk instead of becoming a "Submission Scoring Error".
+    Outside a stage, ``write`` replaces the file immediately.
     """
 
     def __init__(self, sample: pd.DataFrame, path: str | os.PathLike[str] = "submission.csv"):
@@ -84,10 +88,13 @@ class ProgressiveSubmission:
         self.columns = list(sample.columns[1:])
         self.completed: list[str] = []
         self.failed: list[str] = []
-        self.last_stage = "prior"
+        self.last_stage = "prior"  # name of the stage whose output is on disk
+        self._in_stage = False
+        self._pending: pd.DataFrame | None = None
         atomic_write_csv(self.sample, self.path)
 
     def write(self, preds: np.ndarray | pd.DataFrame) -> None:
+        """Validate ``preds`` and write them (or stage them, inside ``stage``)."""
         df = (
             preds
             if isinstance(preds, pd.DataFrame)
@@ -96,11 +103,18 @@ class ProgressiveSubmission:
         problems = validate_submission(df, self.sample)
         if problems:
             raise ValueError("; ".join(problems))
-        atomic_write_csv(df, self.path)
+        if self._in_stage:
+            self._pending = df
+        else:
+            atomic_write_csv(df, self.path)
+            self.last_stage = "manual"
 
     @contextmanager
     def stage(self, name: str) -> Iterator[None]:
+        if self._in_stage:
+            raise RuntimeError("stages cannot be nested")
         start = time.perf_counter()
+        self._in_stage, self._pending = True, None
         try:
             yield
         except Exception:
@@ -109,8 +123,12 @@ class ProgressiveSubmission:
             traceback.print_exc()
         else:
             self.completed.append(name)
-            self.last_stage = name
+            if self._pending is not None:
+                atomic_write_csv(self._pending, self.path)
+                self.last_stage = name
             print(f"[submission] stage {name!r} ok ({time.perf_counter() - start:.1f}s)")
+        finally:
+            self._in_stage, self._pending = False, None
 
     def ok(self, name: str) -> bool:
         return name in self.completed

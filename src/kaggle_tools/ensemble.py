@@ -17,6 +17,8 @@ import pandas as pd
 def rank_normalize(preds: np.ndarray) -> np.ndarray:
     """Per-column percentile rank in (0, 1]. AUC-invariant for a single model."""
     arr = np.asarray(preds, dtype=float)
+    if np.isnan(arr).any():
+        raise ValueError("predictions contain NaN; fill or drop them before ranking")
     squeeze = arr.ndim == 1
     ranked = pd.DataFrame(arr[:, None] if squeeze else arr).rank(axis=0, pct=True).to_numpy()
     return ranked[:, 0] if squeeze else ranked
@@ -27,6 +29,8 @@ def rank_blend(preds: Sequence[np.ndarray], weights: Sequence[float] | None = No
     w = np.ones(len(preds)) if weights is None else np.asarray(weights, dtype=float)
     if len(w) != len(preds):
         raise ValueError("one weight per prediction array is required")
+    if (w < 0).any() or w.sum() <= 0:
+        raise ValueError("weights must be non-negative with a positive sum")
     w = w / w.sum()
     return sum(wi * rank_normalize(p) for wi, p in zip(w, preds, strict=True))
 
@@ -44,6 +48,8 @@ def hill_climb(
     Returns normalised weights (one per model). Evaluate the result on held-out
     folds: hill-climbing on the same OOF it is scored on will overfit.
     """
+    if n_iter < 1:
+        raise ValueError("n_iter must be >= 1")
     models = [rank_normalize(p) if use_ranks else np.asarray(p, dtype=float) for p in oof_preds]
     sign = 1.0 if maximize else -1.0
     counts = np.zeros(len(models))

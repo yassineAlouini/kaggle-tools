@@ -27,7 +27,8 @@ def _check(args: argparse.Namespace) -> int:
         print(f"== {d}: {len(findings)} finding(s)")
         for f in findings:
             print(f"  {f}")
-        if any(f.level == "error" for f in findings) or (args.strict and findings):
+        failing = {"error", "warning"} if args.strict else {"error"}
+        if any(f.level in failing for f in findings):
             exit_code = 1
     return exit_code
 

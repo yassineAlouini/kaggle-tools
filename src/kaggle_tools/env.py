@@ -36,7 +36,8 @@ def is_competition_rerun() -> bool:
     In that run there is no internet, the hidden test set is mounted, and any
     uncaught exception becomes an opaque "Submission Scoring Error".
     """
-    return bool(os.getenv("KAGGLE_IS_COMPETITION_RERUN"))
+    value = os.getenv("KAGGLE_IS_COMPETITION_RERUN", "")
+    return value.strip().lower() not in {"", "0", "false", "no"}
 
 
 def working_dir() -> Path:
@@ -103,15 +104,29 @@ def install_offline_wheels(
     attached as a dataset and installed from the mounted wheel. Raises if a pattern
     matches nothing — a silent ImportError followed by a try/except fallback is how
     a submission quietly degrades to a uniform-prior score.
+
+    Point ``root`` at the wheel dataset (e.g. ``dataset_dir("my-wheels", "me")``):
+    searching all of ``/kaggle/input`` is slow when large datasets are attached.
+    Identical wheel files mounted twice are installed once; two *different* versions
+    of the same package raise, since pip would refuse to install both.
     """
-    wheels: list[Path] = []
+    wheels: dict[str, Path] = {}
     for pattern in patterns:
         found = find_files(pattern, root)
         if not found:
             raise FileNotFoundError(f"No wheel matching {pattern!r} under {root}")
-        wheels.extend(found)
+        for wheel in found:
+            wheels.setdefault(wheel.name, wheel)
+    by_package: dict[str, set[str]] = {}
+    for name in wheels:
+        package = name.split("-")[0].lower().replace("_", "-")
+        by_package.setdefault(package, set()).add(name)
+    conflicts = {pkg: sorted(names) for pkg, names in by_package.items() if len(names) > 1}
+    if conflicts:
+        raise ValueError(f"Several wheels for the same package, narrow the pattern: {conflicts}")
     cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--no-index"]
     if no_deps:
         cmd.append("--no-deps")
-    subprocess.run([*cmd, *map(str, wheels)], check=True)
-    return wheels
+    paths = list(wheels.values())
+    subprocess.run([*cmd, *map(str, paths)], check=True)
+    return paths

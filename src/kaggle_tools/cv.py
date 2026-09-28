@@ -18,7 +18,7 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 
 TRAIN_ONLY = -1
 
@@ -34,9 +34,14 @@ def spatial_group_folds(
 
     Every row of a group lands in the same fold, and nearby groups tend to share a
     fold, so validation measures extrapolation to *new regions* rather than
-    interpolation between neighbours.
+    interpolation between neighbours. Clusters (and so folds) can be very uneven in
+    size; check ``np.bincount(folds)`` and adjust ``n_splits`` if one fold dominates.
     """
+    if df[group_col].isna().any():
+        raise ValueError(f"{group_col!r} contains missing values; every row needs a group")
     centroids = df.groupby(group_col)[list(coord_cols)].mean()
+    if len(centroids) < n_splits:
+        raise ValueError(f"{len(centroids)} groups is fewer than n_splits={n_splits}")
     labels = KMeans(n_clusters=n_splits, n_init=10, random_state=random_state).fit_predict(
         centroids.to_numpy()
     )
@@ -56,6 +61,9 @@ def rare_safe_folds(
     ``labels`` may be 1-D class labels or a 2-D multi-hot matrix. For multi-label
     data, stratification uses each row's rarest positive class, which keeps the tail
     spread across folds (a cheap alternative to iterative stratification).
+
+    With ``groups``, a group containing any rare row is pinned to ``TRAIN_ONLY`` as a
+    whole, so no group is ever split between train and validation.
     """
     labels = np.asarray(labels)
     min_count = n_splits if min_count is None else min_count
@@ -72,10 +80,21 @@ def rare_safe_folds(
         strata = inverse
 
     folds = np.full(len(labels), TRAIN_ONLY, dtype=int)
-    idx = np.flatnonzero(~rare_rows)
-    grp = np.arange(len(labels)) if groups is None else np.asarray(groups)
-    splitter = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    for fold, (_, val) in enumerate(splitter.split(idx, strata[idx], grp[idx])):
+    if groups is None:
+        idx = np.flatnonzero(~rare_rows)
+        splits = StratifiedKFold(n_splits, shuffle=True, random_state=random_state).split(
+            idx, strata[idx]
+        )
+    else:
+        grp = np.asarray(groups)
+        if len(grp) != len(labels):
+            raise ValueError("groups must have one entry per row")
+        rare_rows = np.isin(grp, grp[rare_rows])  # pin whole groups, not single rows
+        idx = np.flatnonzero(~rare_rows)
+        splits = StratifiedGroupKFold(n_splits, shuffle=True, random_state=random_state).split(
+            idx, strata[idx], grp[idx]
+        )
+    for fold, (_, val) in enumerate(splits):
         folds[idx[val]] = fold
     return folds
 

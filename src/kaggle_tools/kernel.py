@@ -6,7 +6,7 @@ Every check below corresponds to a real failed or wasted submission:
 * GPU kernel without ``machine_shape`` -> default P100 (sm_60), which stock torch
   >= 2.10 no longer supports (``cudaErrorNoKernelImageForDevice``). Pin a T4;
 * ``/kaggle/input/<competition-slug>/`` -> competition data lives under
-  ``/kaggle/input/competitions/<slug>/``;
+  ``/kaggle/input/competitions/<slug>/`` (resolve with ``env.competition_dir``);
 * no ``submission.csv`` written -> the "Submit to Competition" button stays disabled;
 * bare ``assert`` / unguarded ``pip install`` -> opaque "Submission Scoring Error" in
   the offline re-run;
@@ -24,12 +24,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-Level = Literal["error", "warning"]
+# "error" fails `kt check`; "warning" fails only with --strict; "info" never fails.
+Level = Literal["error", "warning", "info"]
 METADATA_FILE = "kernel-metadata.json"
-# `!pip install`, `%pip install`, `python -m pip install`, or subprocess ["pip", "install"]
+# `!pip install`, `%pip3 install`, `!uv pip install`, `python -m pip install`,
+# or subprocess ["pip", "install", ...]
+_PIP_MAGIC = re.compile(r"^\s*[!%]\s*(?:uv\s+)?pip3?\s+install")
 _PIP_INSTALL = re.compile(
-    r"""^\s*[!%]pip\s+install|-m\s+pip\s+install|["']pip["']\s*,\s*["']install["']"""
+    r"""^\s*[!%]\s*(?:uv\s+)?pip3?\s+install|-m\s+pip3?\s+install|uv\s+pip\s+install"""
+    r"""|["']pip3?["']\s*,\s*["']install["']"""
 )
+_OFFLINE_TOKENS = ("--no-index", ".whl", "--find-links", "--offline")
+_SUBMISSION_FILE = re.compile(r"(?<!sample_)submission\.(?:csv|parquet|zip)")
+_WRITE_CALL = re.compile(
+    r"\.to_csv\(|\.to_parquet\(|\.write_csv\(|\.write_parquet\(|ZipFile\(|make_archive\("
+)
+_INFERENCE_SERVER = re.compile(r"kaggle_evaluation|InferenceServer")
 TERMINAL_STATES = {"COMPLETE", "ERROR", "CANCEL_ACKNOWLEDGED", "CANCELLED"}
 
 
@@ -96,7 +106,7 @@ def check_metadata(meta: dict, kernel_dir: Path | None = None) -> list[Finding]:
     if meta.get("kernel_sources"):
         findings.append(
             Finding(
-                "warning",
+                "info",
                 "kernel_sources outputs are frozen at the parent's last run; never use them "
                 "for predictions that must be recomputed on the hidden test set",
             )
@@ -114,7 +124,7 @@ def notebook_source(path: Path) -> str:
         return path.read_text()
     nb = json.loads(path.read_text())
     return "\n".join(
-        "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
+        "".join(src) if isinstance(src := cell.get("source", ""), list) else src
         for cell in nb.get("cells", [])
         if cell.get("cell_type") == "code"
     )
@@ -122,13 +132,26 @@ def notebook_source(path: Path) -> str:
 
 def check_source(source: str, competitions: list[str] | None = None) -> list[Finding]:
     findings: list[Finding] = []
-    if competitions and "submission" not in source:
-        findings.append(Finding("error", "source never mentions submission.csv/parquet"))
+    # Inference-server competitions (AIMO, ...) have the gateway write the submission.
+    uses_server = bool(_INFERENCE_SERVER.search(source))
+    writes_submission = "ProgressiveSubmission" in source or (
+        bool(_SUBMISSION_FILE.search(source)) and bool(_WRITE_CALL.search(source))
+    )
+    if competitions and not uses_server and not writes_submission:
+        findings.append(
+            Finding(
+                "warning",
+                "no submission.csv/parquet/zip write found (to_csv/to_parquet/ZipFile of a "
+                "'submission.*' path); without it the Submit button stays disabled",
+            )
+        )
     for slug in competitions or []:
-        if re.search(rf"/kaggle/input/{re.escape(slug)}\b", source):
+        if re.search(rf"""/kaggle/input/{re.escape(slug)}(?:/|['"]|$)""", source, re.MULTILINE):
             findings.append(
                 Finding(
-                    "error", f"use /kaggle/input/competitions/{slug}/, not /kaggle/input/{slug}/"
+                    "warning",
+                    f"/kaggle/input/{slug}/ is not where competition data mounts today; use "
+                    f"/kaggle/input/competitions/{slug}/ or kaggle_tools.env.competition_dir",
                 )
             )
     if re.search(r"^\s*assert\s", source, flags=re.MULTILINE):
@@ -137,9 +160,15 @@ def check_source(source: str, competitions: list[str] | None = None) -> list[Fin
         )
     lines = source.splitlines()
     for i, line in enumerate(lines):
-        call = " ".join(lines[i : i + 4])  # multi-line subprocess.run([...]) calls
-        offline = any(tok in call for tok in ("--no-index", ".whl", "--find-links"))
-        if _PIP_INSTALL.search(line) and not offline:
+        if not _PIP_INSTALL.search(line):
+            continue
+        call = [line]
+        if not _PIP_MAGIC.search(line):  # subprocess.run([...]) may span a few lines
+            for nxt in lines[i + 1 : i + 4]:
+                if _PIP_INSTALL.search(nxt):
+                    break
+                call.append(nxt)
+        if not any(tok in " ".join(call) for tok in _OFFLINE_TOKENS):
             findings.append(
                 Finding(
                     "warning",
@@ -155,11 +184,18 @@ def check_kernel_dir(kernel_dir: str | Path) -> list[Finding]:
     meta_path = kernel_dir / METADATA_FILE
     if not meta_path.is_file():
         return [Finding("error", f"{meta_path} not found")]
-    meta = json.loads(meta_path.read_text())
+    try:
+        meta = json.loads(meta_path.read_text())
+    except json.JSONDecodeError as exc:
+        return [Finding("error", f"{meta_path} is not valid JSON: {exc}")]
     findings = check_metadata(meta, kernel_dir)
     code = kernel_dir / meta.get("code_file", "")
     if code.is_file():
-        findings += check_source(notebook_source(code), meta.get("competition_sources"))
+        try:
+            source = notebook_source(code)
+        except (json.JSONDecodeError, AttributeError, TypeError) as exc:
+            return [*findings, Finding("error", f"could not parse {code}: {exc}")]
+        findings += check_source(source, meta.get("competition_sources"))
     return findings
 
 
@@ -178,15 +214,32 @@ def push(kernel_dir: str | Path) -> str:
 def status(kernel_id: str) -> str:
     """Return the kernel status, e.g. ``RUNNING``, ``COMPLETE`` or ``ERROR``."""
     out = _kaggle("kernels", "status", kernel_id)
-    match = re.search(r'status "(?:KernelWorkerStatus\.)?([A-Z_]+)"', out)
-    return match.group(1) if match else out.strip()
+    match = re.search(r'status "(?:KernelWorkerStatus\.)?([A-Za-z_]+)"', out)
+    return match.group(1).upper() if match else out.strip()
 
 
-def wait(kernel_id: str, poll_seconds: float = 60, timeout_seconds: float = 13 * 3600) -> str:
-    """Poll until the kernel reaches a terminal state; returns that state."""
+def wait(
+    kernel_id: str,
+    poll_seconds: float = 60,
+    timeout_seconds: float = 13 * 3600,
+    max_consecutive_errors: int = 5,
+) -> str:
+    """Poll until the kernel reaches a terminal state; returns that state.
+
+    Transient CLI failures (network, API hiccups) are retried; only
+    ``max_consecutive_errors`` failures in a row are re-raised.
+    """
     deadline = time.monotonic() + timeout_seconds
+    errors = 0
     while True:
-        state = status(kernel_id)
+        try:
+            state = status(kernel_id)
+            errors = 0
+        except subprocess.CalledProcessError:
+            errors += 1
+            if errors >= max_consecutive_errors:
+                raise
+            state = "UNKNOWN"
         if state in TERMINAL_STATES or time.monotonic() > deadline:
             return state
         time.sleep(poll_seconds)

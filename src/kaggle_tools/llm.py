@@ -6,22 +6,26 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Hashable, Iterable, Sequence
 
+_NUMBER = r"(-?\d[\d,]*)"
 _PATTERNS = (
-    r"\\boxed\{\s*(-?\d+)\s*\}",
-    r"final answer[^\d-]{0,20}(-?\d+)",
-    r"answer is[^\d-]{0,20}(-?\d+)",
+    # \boxed{42}, \boxed{12,345}, \boxed{\text{42}}, \boxed{42.} ...
+    r"\\boxed\{\s*(?:\\(?:text|mathrm|textbf)\{\s*)?" + _NUMBER + r"\s*\.?\s*\}",
+    r"final answer[^\d-]{0,20}" + _NUMBER,
+    r"answer is[^\d-]{0,20}" + _NUMBER,
 )
 
 
 def extract_integer_answer(text: str, modulus: int | None = None) -> int | None:
     """Return the *last* integer answer found in ``text`` (``\\boxed{}`` first).
 
-    AIMO-style tasks want a non-negative integer mod ``modulus`` (e.g. 100000).
+    Thousands separators are stripped (``12,345`` -> 12345). With ``modulus``, the
+    value is reduced with Python's ``%``, so a negative answer maps into
+    ``[0, modulus)`` (AIMO-style tasks want a non-negative integer, e.g. mod 100000).
     """
     for pattern in _PATTERNS:
         matches = re.findall(pattern, text, flags=re.IGNORECASE)
         if matches:
-            value = int(matches[-1])
+            value = int(matches[-1].replace(",", ""))
             return value % modulus if modulus else value
     return None
 

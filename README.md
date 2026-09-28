@@ -27,7 +27,7 @@ Core dependencies are only `numpy`, `pandas` and `scikit-learn`. Optional extras
 | module | highlights |
 |---|---|
 | `env` | `competition_dir` / `dataset_dir` resolve every `/kaggle/input` mount layout; `is_competition_rerun`; `install_offline_wheels` (fails loudly instead of silently degrading) |
-| `submission` | `ProgressiveSubmission` keeps a valid file on disk after every stage (atomic writes, failing stages logged and skipped); vectorised `build_submission`; `validate_submission` |
+| `submission` | `ProgressiveSubmission` keeps a valid file on disk after every stage (atomic writes; a stage's output only replaces the file if the stage finishes, failing stages are logged and skipped); vectorised `build_submission`; `validate_submission` |
 | `ensemble` | `rank_blend` (per-column percentile ranks, for AUC-like metrics); `hill_climb` (Caruana greedy weights) |
 | `cv` | `spatial_group_folds` (K-means on entity coordinates); `rare_safe_folds` (stratified-group, rare classes pinned to train, multi-label aware) |
 | `metrics` | `macro_auc` (skips empty columns, like BirdCLEF), `rmse`, `best_threshold` |
@@ -71,10 +71,12 @@ kt validate submission.csv sample_submission.csv
 kt ledger submissions.jsonl      # every submission, with delta vs best-so-far
 ```
 
-`kt check` catches, among others: internet enabled on a competition kernel, a GPU kernel
-without a pinned T4, `/kaggle/input/<comp>/` instead of `/kaggle/input/competitions/<comp>/`,
-a missing `submission.csv`, bare `assert`s, online `pip install`s, and `kernel_sources`
-used for predictions.
+`kt check` flags internet enabled on a competition kernel and a missing `code_file` as
+**errors** (exit 1). It **warns** (exit 1 only with `--strict`) about a GPU kernel without a
+pinned T4, `/kaggle/input/<comp>/` instead of `/kaggle/input/competitions/<comp>/`, no
+`submission.csv`/`.parquet`/`.zip` write (inference-server notebooks are exempt), bare `assert`s and online
+`pip install`s. Using `kernel_sources` is reported as **info**: fine for wheels and weights,
+wrong for predictions that must be recomputed on the hidden test.
 
 ## Claude Code skills
 

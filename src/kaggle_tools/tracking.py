@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -44,13 +45,23 @@ class Ledger:
             f.write(json.dumps(asdict(entry)) + "\n")
         return entry
 
-    def update(self, kernel: str, version: int, **fields: Any) -> None:
-        """Fill in LB / status for an earlier entry (e.g. once scoring finishes)."""
+    def update(self, kernel: str, version: int, **fields: Any) -> int:
+        """Fill in LB / status for an earlier entry (e.g. once scoring finishes).
+
+        Returns the number of rows updated; raises ``KeyError`` if none matched.
+        """
         rows = self.rows()
+        matched = 0
         for row in rows:
             if row["kernel"] == kernel and row["version"] == version:
                 row.update(fields)
-        self.path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+                matched += 1
+        if not matched:
+            raise KeyError(f"no ledger entry for kernel={kernel!r} version={version!r}")
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        os.replace(tmp, self.path)
+        return matched
 
     def rows(self) -> list[dict[str, Any]]:
         if not self.path.exists():
@@ -63,7 +74,9 @@ class Ledger:
         if df.empty:
             return df
         lb = pd.to_numeric(df["lb"], errors="coerce")
-        running = (lb.cummax() if self.higher_is_better else lb.cummin()).shift()
+        # cummax/cummin are NaN on unscored rows (ERROR, TIMEOUT...): carry the best forward.
+        best = lb.cummax() if self.higher_is_better else lb.cummin()
+        running = best.ffill().shift()
         df["delta_vs_best"] = lb - running
         return df
 

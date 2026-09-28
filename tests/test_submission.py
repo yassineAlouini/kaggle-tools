@@ -32,11 +32,12 @@ def test_progressive_keeps_last_good_output(sample, tmp_path):
         sub.write(np.full((3, 2), 0.9))
     with sub.stage("stage2"):
         sub.write(np.full((3, 2), 0.1))
-        raise RuntimeError("boom")  # after write: file already updated
+        raise RuntimeError("boom")  # staged write is discarded
     with sub.stage("stage3"):
         sub.write(np.full((2, 2), 0.3))  # wrong shape -> rejected, stage fails
 
     assert sub.completed == ["stage1"]
     assert sub.failed == ["stage2", "stage3"]
     assert sub.ok("stage1") and not sub.ok("stage3")
-    assert np.allclose(pd.read_csv(path)[["x", "y"]], 0.1)
+    assert np.allclose(pd.read_csv(path)[["x", "y"]], 0.9)
+    assert sub.last_stage == "stage1"
