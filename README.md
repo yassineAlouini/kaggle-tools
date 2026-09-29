@@ -1,143 +1,113 @@
-# Kaggle Tools
+# kaggle-tools
 
-## About
+Small, battle-tested Python utilities **and Claude Code skills** for Kaggle competitions.
 
-A modern Python toolkit containing utilities, scripts, and code snippets commonly used in Kaggle challenges and machine learning tasks. This library provides reusable components for data science competitions, deep learning workflows, and general ML experimentation.
+The code encodes lessons from real competitions (AIMO3, BirdCLEF 2026, ROGII Wellbore
+Geology, NVIDIA Nemotron, Biohub cell tracking, …). Most of them were learned the hard way:
+silent "Submission Scoring Error"s, timeouts, P100s that current torch can't run,
+offline re-runs without internet, and OOF gains that never reached the leaderboard.
 
-## Features
-
-- **Metrics**: Custom Keras metrics and evaluation tools
-- **Classification**: Decision tree visualization and building utilities
-- **Image Processing**: Image augmentation and preprocessing pipelines
-- **Deep Learning**: Model management and training utilities
-- **Diagnostics**: Performance monitoring and statistical analysis
-- **Scaling**: Distributed computing with Dask
-- **Submission**: Helper tools for competition submissions
-
-## Installation
-
-### Basic Installation
-
-Install the package using pip:
+## Install
 
 ```bash
-pip install kaggle-tools
+uv add git+https://github.com/yassineAlouini/kaggle-tools        # or: pip install git+...
+uv add "kaggle-tools[tracking,tune,gbdt] @ git+https://github.com/yassineAlouini/kaggle-tools"
 ```
 
-### Development Installation
+Core dependencies are only `numpy`, `pandas` and `scikit-learn`. Optional extras:
 
-For development work, clone the repository and install with development dependencies:
+| extra | adds | for |
+|---|---|---|
+| `tracking` | [Trackio](https://github.com/gradio-app/trackio) | local-first, wandb-compatible experiment tracking |
+| `tune` | Optuna | hyper-parameter search |
+| `gbdt` | LightGBM, XGBoost, CatBoost | tabular stacks |
+
+## What's inside
+
+| module | highlights |
+|---|---|
+| `env` | `competition_dir` / `dataset_dir` resolve every `/kaggle/input` mount layout; `is_competition_rerun`; `install_offline_wheels` (fails loudly instead of silently degrading) |
+| `submission` | `ProgressiveSubmission` keeps a valid file on disk after every stage (atomic writes; a stage's output only replaces the file if the stage finishes, failing stages are logged and skipped); vectorised `build_submission`; `validate_submission` |
+| `ensemble` | `rank_blend` (per-column percentile ranks, for AUC-like metrics); `hill_climb` (Caruana greedy weights) |
+| `cv` | `spatial_group_folds` (K-means on entity coordinates); `rare_safe_folds` (stratified-group, rare classes pinned to train, multi-label aware) |
+| `metrics` | `macro_auc` (skips empty columns, like BirdCLEF), `rmse`, `best_threshold` |
+| `budget` | `TimeBudget` for wall-clock-limited notebooks; `@timed` |
+| `kernel` | pre-push lint for `kernel-metadata.json` + notebook source; `push` / `status` / `wait` / `output` wrappers |
+| `llm` | `extract_integer_answer`, `majority_vote`, inverse-entropy `weighted_vote`, early-stopping `ConsensusVoter` |
+| `audio` | BirdCLEF `row_id` parsing, window ids, `frame_windows` |
+| `features` | `date_features` (tz-aware, cyclical), `oof_target_encode` |
+| `tracking` | `Ledger`: JSONL submission ledger keyed by Kaggle kernel version, with LB deltas; `trackio_run` |
+
+### A robust inference notebook
+
+```python
+import pandas as pd
+from kaggle_tools.env import competition_dir, working_dir
+from kaggle_tools.submission import ProgressiveSubmission
+from kaggle_tools.ensemble import rank_blend
+from kaggle_tools.budget import TimeBudget
+
+budget = TimeBudget(total_seconds=90 * 60, margin_seconds=10 * 60)
+data = competition_dir("birdclef-2026")
+sub = ProgressiveSubmission(
+    pd.read_csv(data / "sample_submission.csv"), working_dir() / "submission.csv"
+)  # prior written now
+
+with sub.stage("backbone"):
+    p_backbone = run_backbone(data)
+    sub.write(p_backbone)
+
+if sub.ok("backbone") and budget.has(20 * 60):
+    with sub.stage("ensemble"):
+        sub.write(rank_blend([p_backbone, run_second_arm(data)], [0.5, 0.5]))
+```
+
+### CLI
 
 ```bash
-git clone https://github.com/yassineAlouini/kaggle-tools.git
-cd kaggle-tools
-pip install -e ".[dev]"
+kt init-kernel notebooks/my-kernel --id me/my-kernel --competition birdclef-2026  # T4, internet off
+kt check notebooks/*/            # lint before `kaggle kernels push`
+kt validate submission.csv sample_submission.csv
+kt ledger submissions.jsonl      # every submission, with delta vs best-so-far
 ```
 
-### Optional Dependencies
+`kt check` flags internet enabled on a competition kernel and a missing `code_file` as
+**errors** (exit 1). It **warns** (exit 1 only with `--strict`) about a GPU kernel without a
+pinned T4, `/kaggle/input/<comp>/` instead of `/kaggle/input/competitions/<comp>/`, no
+`submission.csv`/`.parquet`/`.zip` write (inference-server notebooks are exempt), bare `assert`s and online
+`pip install`s. Using `kernel_sources` is reported as **info**: fine for wheels and weights,
+wrong for predictions that must be recomputed on the hidden test.
 
-Install additional dependencies for specific features:
+## Claude Code skills
 
-```bash
-# For image processing
-pip install kaggle-tools[image]
+`skills/` ships as a Claude Code plugin:
 
-# For documentation
-pip install kaggle-tools[docs]
+| skill | use it for |
+|---|---|
+| `kaggle-competition-playbook` | reading the metric code, CV design, CV→LB transfer, experiment selection, ensembling, quota |
+| `kaggle-code-competitions` | offline re-runs, paths, wheels, accelerators, time limits, push workflow, pre-submit checklist |
+| `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank-blend |
+| `kaggle-llm-reasoning` | AIMO-style: model choice, vLLM, SC-TIR, voting, time budget |
+| `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified CoT data, adapter packaging |
+| `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
 
-# All optional dependencies
-pip install kaggle-tools[dev,image,docs]
+Install:
+
+```text
+/plugin marketplace add yassineAlouini/kaggle-tools
+/plugin install kaggle-tools@kaggle-tools
 ```
-
-### Virtual Environment (Recommended)
-
-Using a virtual environment is recommended to avoid dependency conflicts:
-
-```bash
-# Using venv
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install kaggle-tools
-
-# Using conda
-conda create -n kaggle-tools python=3.10
-conda activate kaggle-tools
-pip install kaggle-tools
-```
-
-## Requirements
-
-- Python ≥ 3.8
-- Core dependencies: keras, pandas, tensorflow, xgboost, hyperopt
 
 ## Development
 
-### Running Tests
-
 ```bash
-pytest
+uv sync                     # creates .venv with dev tools
+uv run pytest
+uv run ruff format . && uv run ruff check .
+uv run ty check src
+uvx pre-commit install
 ```
-
-### Code Formatting
-
-This project uses `black` for code formatting and `ruff` for linting:
-
-```bash
-# Format code
-black kaggle_tools/
-
-# Lint code
-ruff kaggle_tools/
-
-# Type checking
-mypy kaggle_tools/
-```
-
-## Project Structure
-
-```
-kaggle-tools/
-├── kaggle_tools/
-│   ├── classification/      # Tree-based model utilities
-│   ├── deep_learning/       # Deep learning model management
-│   ├── diagnostic/          # Performance and statistical diagnostics
-│   ├── features_engineering/# Feature engineering tools
-│   ├── image_processing/    # Image augmentation and processing
-│   ├── metrics/             # Custom metrics for model evaluation
-│   ├── scale/               # Distributed computing tools
-│   ├── submission/          # Competition submission helpers
-│   └── tests/               # Unit tests
-├── docs/                    # Documentation
-├── pyproject.toml           # Project configuration and dependencies
-└── README.md               # This file
-```
-
-## Contributing
-
-Contributions are welcome! Feel free to:
-
-- Submit bug reports and feature requests via [GitHub Issues](https://github.com/yassineAlouini/kaggle-tools/issues)
-- Submit pull requests with improvements
-- Share tools and utilities you find useful
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and formatting (`pytest`, `black .`, `ruff .`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
 
 ## License
 
-The MIT License (MIT)
-
-Copyright (c) 2018-2026 Yassine Alouini
-
-See [LICENSE](LICENSE) file for details.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
+MIT © 2018–2026 Yassine Alouini

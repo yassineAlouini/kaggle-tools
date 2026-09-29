@@ -1,0 +1,17 @@
+{
+  "name": "kaggle-tools",
+  "description": "Kaggle competition skills for Claude Code",
+  "owner": {
+    "name": "Yassine Alouini",
+    "email": "yassinealouini@outlook.com"
+  },
+  "plugins": [
+    {
+      "name": "kaggle-tools",
+      "description": "Kaggle competition skills: playbook, code-competition infra, audio, LLM reasoning, LLM fine-tuning, tabular",
+      "version": "0.1.0",
+      "source": "./",
+      "author": { "name": "Yassine Alouini" }
+    }
+  ]
+}

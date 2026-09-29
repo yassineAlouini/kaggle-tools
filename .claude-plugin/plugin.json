@@ -1,0 +1,13 @@
+{
+  "name": "kaggle-tools",
+  "description": "Kaggle competition skills distilled from AIMO3, BirdCLEF 2026, ROGII, Nemotron and Biohub: playbook, code-competition infra, audio, LLM reasoning, LLM fine-tuning, tabular",
+  "version": "0.1.0",
+  "author": {
+    "name": "Yassine Alouini",
+    "email": "yassinealouini@outlook.com"
+  },
+  "homepage": "https://github.com/yassineAlouini/kaggle-tools",
+  "repository": "https://github.com/yassineAlouini/kaggle-tools",
+  "license": "MIT",
+  "keywords": ["kaggle", "machine-learning", "competitions", "skills"]
+}
