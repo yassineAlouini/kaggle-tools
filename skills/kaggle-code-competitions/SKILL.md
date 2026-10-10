@@ -95,7 +95,8 @@ when polling the latest kernel status. The notebook UI button still works.
 See the [Kaggle CLI implementation](https://github.com/Kaggle/kaggle-api/blob/main/src/kaggle/api/kaggle_api_extended.py)
 (`competition_submit_cli`, `competition_submit_code`).
 
-Or from Python: `kaggle_tools.kernel.push / wait / output`.
+Or from Python: `kaggle_tools.kernel.push / wait / output`, then
+`parse_pushed_version` + `submit(competition, kernel_id, version, message)`.
 
 ## GPU quota, hung kernels and session limits
 
@@ -120,6 +121,8 @@ Or from Python: `kaggle_tools.kernel.push / wait / output`.
   ordinary Python thread may be blocked by code holding the GIL. Forced exit skips
   cleanup, so use an external process-group timeout when child processes must also
   be killed. See [faulthandler](https://docs.python.org/3/library/faulthandler.html#faulthandler.dump_traceback_later).
+  Helpers: `kaggle_tools.runtime.watchdog(seconds)` and
+  `guarded_initializer(setup)` + `raise_if_init_failed()` in the task function.
 - Never `glob("**/...", recursive=True)` over `/kaggle/input` to find your weights:
   the competition mount may sit under `/kaggle/input/<slug>/` and a recursive walk of
   ~10^5 DICOMs took 9 minutes of the run. Skip competition mounts explicitly.
@@ -131,7 +134,8 @@ training inputs using the competition's test schema. For RSNA Knee, use e.g. ~64
 studies: build a fake root with `test.csv`, the per-series CSV for those ids, and a
 symlink `test_series -> train_series`. Select this root only through an explicit
 rehearsal option; leave it disabled in the submitted notebook. Include large studies
-and time setup separately from per-study work when estimating hidden-test runtime.
+and time setup separately from per-study work when estimating hidden-test runtime
+(`kaggle_tools.runtime.rehearsal_root` builds the fake root).
 **Compare against the same ensemble run locally, not against OOF.** Fold models were
 trained on 4/5 of those studies, so a 5-fold average differs from OOF by up to ~0.7
 per prediction; an automatic gate that compared to OOF blocked a correct submission
@@ -157,6 +161,8 @@ and runtime check, not an unbiased accuracy estimate; keep OOF for model validat
   GET can reveal the total, but require HTTP 206 and a valid `Content-Range`; a server
   may ignore Range. Stop on unsupported resume or a checksum mismatch.
   See [curl's resume options](https://curl.se/docs/manpage.html#-C).
+  Helper: `kaggle_tools.kernel.download_resumable(url, dest, expected_size=None, sha256=None)`;
+  shards: `kaggle_tools.runtime.shard_ids(ids, part, n_parts, seed)`.
 - Share the preprocessing function and configuration between training and inference.
   If offline packaging requires a copy, verify it stays in sync and compare tensors
   for the same raw input; a one-time verbatim copy does not prevent later drift.
