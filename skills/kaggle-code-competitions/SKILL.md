@@ -13,7 +13,7 @@ silently in the re-run. Run `kt check <kernel_dir>` (from `kaggle-tools`) before
 
 | What | Path |
 |---|---|
-| Competition data | `/kaggle/input/competitions/<slug>/` (NOT `/kaggle/input/<slug>/`) |
+| Competition data | `/kaggle/input/competitions/<slug>/` or `/kaggle/input/<slug>/` |
 | Datasets (older layout) | `/kaggle/input/datasets/<owner>/<slug>/` |
 | Datasets (newer layout) | `/kaggle/input/<slug>/` |
 | Models | `/kaggle/input/<model>/<framework>/<variation>/<version>/` |
@@ -84,11 +84,82 @@ kaggle datasets version -p artifacts/ -m "..."    # FIRST: kernels pin dataset v
 kaggle kernels push -p notebooks/my-kernel/
 kaggle kernels status <user>/<slug>                # poll until COMPLETE / ERROR
 kaggle kernels output <user>/<slug> -p /tmp/out/   # always read the log on ERROR
-# Submit from the notebook UI → "Submit to Competition"
-# (`kaggle competitions submit` returns 400 for code competitions)
+# Submit the COMPLETE version from the CLI (works for code competitions, CLI 2.0, 2026-10):
+kaggle competitions submit <comp-slug> -k <user>/<slug> -v <version> -f submission.csv -m "..."
 ```
 
+When using `-k`, `-v` is required too. `-f` names the saved notebook's output file,
+not a local CSV to upload. Record the version printed by `kernels push` and check
+that version's completion and logs before submitting it; avoid overlapping pushes
+when polling the latest kernel status. The notebook UI button still works.
+See the [Kaggle CLI implementation](https://github.com/Kaggle/kaggle-api/blob/main/src/kaggle/api/kaggle_api_extended.py)
+(`competition_submit_cli`, `competition_submit_code`).
+
 Or from Python: `kaggle_tools.kernel.push / wait / output`.
+
+## GPU quota, hung kernels and session limits
+
+- A normal `kernels push` starts a save-mode run; GPU runs consume GPU quota.
+  RSNA Knee 2026 runs encountered a 30 h weekly quota and a two-session GPU limit.
+  Check the account's current quota, reset countdown and concurrency limits in
+  Kaggle before scheduling work; these observations are not platform guarantees.
+  CPU-only preprocessing does not use GPU quota.
+- On a concurrency rejection, wait for an existing session to finish before a
+  bounded retry with backoff. On quota exhaustion, stop until the displayed reset.
+  If a push's response is lost, check whether it created a version before retrying.
+- **A hung kernel burns quota for hours.** RSNA Knee 2026: a `multiprocessing.Pool`
+  initializer raised `NameError`; the pool silently respawned workers forever and the
+  save-mode run sat on two T4s until cancelled by hand. Validate setup before starting
+  the pool. If initialization must happen in each worker, catch `Exception`, store
+  the failure in worker state, and have the task function raise it to the parent;
+  a `Pool` initializer's return value is discarded. Terminate and join the pool on
+  failure, and bound waits in the parent. See [Python's Pool documentation](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool).
+  For rehearsal runs, arm `faulthandler.dump_traceback_later(limit, exit=True)` and
+  cancel it in `finally` with `faulthandler.cancel_dump_traceback_later()` so a
+  successful run cannot be killed later. This uses a native watchdog thread; an
+  ordinary Python thread may be blocked by code holding the GIL. Forced exit skips
+  cleanup, so use an external process-group timeout when child processes must also
+  be killed. See [faulthandler](https://docs.python.org/3/library/faulthandler.html#faulthandler.dump_traceback_later).
+- Never `glob("**/...", recursive=True)` over `/kaggle/input` to find your weights:
+  the competition mount may sit under `/kaggle/input/<slug>/` and a recursive walk of
+  ~10^5 DICOMs took 9 minutes of the run. Skip competition mounts explicitly.
+
+## Rehearse the hidden-test run on train data
+
+Before submitting a new model, rehearse inference on a representative subset of
+training inputs using the competition's test schema. For RSNA Knee, use e.g. ~64
+studies: build a fake root with `test.csv`, the per-series CSV for those ids, and a
+symlink `test_series -> train_series`. Select this root only through an explicit
+rehearsal option; leave it disabled in the submitted notebook. Include large studies
+and time setup separately from per-study work when estimating hidden-test runtime.
+**Compare against the same ensemble run locally, not against OOF.** Fold models were
+trained on 4/5 of those studies, so a 5-fold average differs from OOF by up to ~0.7
+per prediction; an automatic gate that compared to OOF blocked a correct submission
+(RSNA Knee v3, later 0.940 LB). Against the local 5-fold average the kernel matched to
+max |diff| 0.0099 (fp16 vs bf16).
+Align sample ids and output columns and use a precision tolerance measured for your
+pipeline; 0.0099 is an observation, not a universal threshold. This is a plumbing
+and runtime check, not an unbiased accuracy estimate; keep OOF for model validation.
+
+## Big artefacts: corpora and outputs
+
+- Check the current saved-output limit separately from free scratch disk space
+  ([Kaggle notebook documentation](https://www.kaggle.com/docs/notebooks)). The RSNA
+  Knee corpus build budgeted ~20 GB per kernel for a ~48 GB, 96-slice MRI corpus.
+  Shard using one shared id manifest (`ids[part::n_parts]`); shuffle it once with a
+  fixed seed if representative shards matter. Interleaving sorted ids is not random,
+  and variable study sizes require checking each shard's estimated bytes.
+- Multi-GB output downloads were observed to truncate in the RSNA Knee workflow;
+  verify size and preferably a producer-recorded checksum before consuming them.
+  If a signed-URL download needs resuming, use `curl --fail --location -C -` with
+  an explicit output path and bounded retries. Resume only the same immutable file;
+  refresh expired URLs for that version. If HEAD is rejected, a `Range: bytes=0-0`
+  GET can reveal the total, but require HTTP 206 and a valid `Content-Range`; a server
+  may ignore Range. Stop on unsupported resume or a checksum mismatch.
+  See [curl's resume options](https://curl.se/docs/manpage.html#-C).
+- Share the preprocessing function and configuration between training and inference.
+  If offline packaging requires a copy, verify it stays in sync and compare tensors
+  for the same raw input; a one-time verbatim copy does not prevent later drift.
 
 ## kernel_sources pitfalls
 
@@ -107,3 +178,5 @@ Or from Python: `kaggle_tools.kernel.push / wait / output`.
 5. Dataset versions pushed *before* the kernel.
 6. Runtime in save mode leaves headroom for the full hidden test.
 7. Record the kernel version in the ledger before submitting.
+8. Rehearsed on train data posing as test (runtime extrapolated, predictions matched
+   against the local ensemble, not OOF); watchdog in place for test runs.

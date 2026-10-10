@@ -48,6 +48,18 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
   proxy (ROGII: 0.005 locally vs 9.15 LB for the same model).
 - Tiny public LBs (BirdCLEF public = 3 windows / 34% slice) are mostly noise;
   ±0.001 is not a signal.
+- **With noisy training labels, OOF scored against those labels can reward fitting the
+  noise.** RSNA Knee 2026 (LLM-extracted report labels): leak-free self-distillation
+  raised every local metric (report-label OOF +0.008, confident-label OOF +0.004, a
+  58-study radiologist set +0.007) and lowered the LB twice (−0.001 ConvNeXt, −0.002
+  CoAtNet). Use a controlled LB A/B alongside leak-free validation to check transfer;
+  these small public-LB deltas do not establish that fitting label noise caused it.
+- When labels are noisy, score OOF on several label views (all labels, only confident
+  labels, the small expert-labelled set) and track each one's correlation with the LB
+  across submissions; there, the confident-label subset tracked the LB best (r≈0.95 over
+  6 submissions) and the report-label OOF understated a backbone gain by ~3×.
+  Treat that six-run correlation as exploratory: selecting a label view repeatedly
+  against public LB can overfit it. Preserve an independent holdout for confirmation.
 
 ## 4. Choose experiments like a scientist
 
@@ -93,10 +105,48 @@ plateaued, use a proxy on the *hard* folds, and use TPE + MedianPruner.
 - Scoring workers vary in speed: identical code can score once and TIMEOUT next.
   Keep a healthy time margin and re-submit before concluding code is broken.
 
-## 8. Agentic workflow tips
+## 8. External data and public weights
+
+- Check each competition's external-data and winner-licensing rules against the
+  original data terms and model provenance. A downloadable re-upload or permissive
+  model licence does not establish permission to use the upstream training data.
+  Gated access alone also does not settle eligibility; use the organisers' rules and
+  clarifications for that competition. For RSNA Knee, start with the
+  [competition rules](https://www.kaggle.com/competitions/rsna-knee-abnormality-detection/rules).
+- Inventory top public notebooks with
+  `kaggle kernels pull <owner>/<slug> -p /tmp/notebook-audit/ -m`, then read
+  `dataset_sources`/`model_sources` and trace upstream weights. Record notebook and
+  checkpoint versions, provenance links and scores. Attachments alone cannot prove
+  training provenance or establish a performance ceiling for eligible models.
+- Weights trained using labels from *all* training rows contaminate CV when reused
+  in every fold. Use checkpoints trained without each validation fold or an independent
+  holdout absent from both pretraining and fine-tuning. Expert annotations on the same
+  exposed studies do not make them untouched. Use public LB only as a transfer check,
+  and distinguish supervised leakage from unlabelled pretraining permitted by the rules.
+
+## 9. Agentic workflow tips
 
 - Keep a per-competition `CLAUDE.md` with: metric facts, data paths, the LB tracker,
   "what works", and "failed — do NOT retry" with the evidence. It stops re-running
   dead ideas across sessions.
 - Put long-running training/kernels in the background and poll status; download the
   kernel log on any ERROR before theorising.
+- Background jobs may be terminated with the agent's execution session. On Linux
+  hosts with a systemd user manager, run multi-hour queues as transient services:
+  `systemd-run --user --unit <unique-name> --same-dir --service-type=exec /bin/bash /absolute/path/queue.sh`.
+  Services use the manager's environment; activate the intended environment in the
+  script or use absolute executable paths and explicit `--setenv` values. Inspect
+  `journalctl --user -u <unique-name>` and `systemctl --user status <unique-name>`.
+  Set memory limits from measured needs, not a fixed 40 GB. If the service must survive
+  logout, check user lingering and enable it only when needed. Use the host's scheduler
+  where systemd is unavailable. See [systemd-run](https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html).
+  Checkpoint model, optimizer, scheduler, RNG and progress state, and implement resume;
+  a checkpoint alone does not restart a killed run.
+- In the RSNA Knee ZFS setup, memmapped corpora coincided with training OOM kills.
+  Linux ZFS can hold mapped data in both page cache and ARC
+  ([OpenZFS discussion](https://github.com/openzfs/zfs/issues/225)). Measure process,
+  cgroup and ARC memory before changing readers. Bounded `os.pread` reads are an
+  alternative to benchmark; `posix_fadvise(DONTNEED)` is advisory, not an ARC memory
+  cap or a guarantee against OOM.
+- Gate automatic submissions on checks you have validated by hand once; a wrong gate
+  silently skips a good submission (see `kaggle-code-competitions`, rehearsal).
