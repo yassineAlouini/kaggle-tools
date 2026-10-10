@@ -161,6 +161,23 @@ and runtime check, not an unbiased accuracy estimate; keep OOF for model validat
   If offline packaging requires a copy, verify it stays in sync and compare tensors
   for the same raw input; a one-time verbatim copy does not prevent later drift.
 
+## DICOM inputs
+
+- Audit the encodings before trusting a reader on the hidden set: a CPU kernel that
+  reads only headers (`dcmread(stop_before_pixels=True, specific_tags=[...])` +
+  `file_meta.TransferSyntaxUID`) over every file, then decodes one file of each kind
+  with your exact reader calls. RSNA Knee 2026: all 819k train and visible-test files
+  were uncompressed Explicit VR Little Endian, 16-bit MONOCHROME2, 25% signed.
+- The Kaggle image (2026-10: pydicom 3.0.2) has **no** compressed-DICOM decoders
+  (pylibjpeg, openjpeg, gdcm, CharLS, imagecodecs all missing). If the audit finds
+  JPEG/JPEG2000/JPEG-LS/RLE, ship those wheels as a dataset.
+- Expect non-square frames (640×1280) and signed pixels with negative values; apply
+  the modality LUT and window by percentiles rather than fixed ranges.
+- Header parsing dominates I/O: `specific_tags` for the 3–4 tags you need was ~8×
+  faster end to end than full headers (pixel decode was only ~5% of wall time).
+- Fail per slice, not per study: catch decode errors per file and fall back to a
+  neutral prediction only when a whole study yields nothing.
+
 ## kernel_sources pitfalls
 
 - A parent kernel's outputs are **frozen at its last run**; they are not recomputed
