@@ -48,6 +48,15 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
   proxy (ROGII: 0.005 locally vs 9.15 LB for the same model).
 - Tiny public LBs (BirdCLEF public = 3 windows / 34% slice) are mostly noise;
   ±0.001 is not a signal.
+- **With noisy training labels, OOF scored against those labels can reward fitting the
+  noise.** RSNA Knee 2026 (LLM-extracted report labels): leak-free self-distillation
+  raised every local metric (report-label OOF +0.008, confident-label OOF +0.004, a
+  58-study radiologist set +0.007) and lowered the LB twice (−0.001 ConvNeXt, −0.002
+  CoAtNet). Judge label-denoising ideas by an LB A/B, not by OOF.
+- When labels are noisy, score OOF on several label views (all labels, only confident
+  labels, the small expert-labelled set) and track each one's correlation with the LB
+  across submissions; there, the confident-label subset tracked the LB best (r≈0.95 over
+  6 submissions) and the report-label OOF understated a backbone gain by ~3×.
 
 ## 4. Choose experiments like a scientist
 
@@ -93,10 +102,31 @@ plateaued, use a proxy on the *hard* folds, and use TPE + MedianPruner.
 - Scoring workers vary in speed: identical code can score once and TIMEOUT next.
   Keep a healthy time margin and re-submit before concluding code is broken.
 
-## 8. Agentic workflow tips
+## 8. External data and public weights
+
+- Check the licence and provenance of every public dataset/model before using it.
+  Re-uploads on Kaggle/HF of gated data (MRNet, fastMRI, OAI, ...) are not
+  "publicly available and equally accessible" just because they are downloadable, and
+  non-commercial / no-derivatives licences can clash with the winners' open-licence
+  requirement. Prefer CC0 / CC-BY / Apache and competition-derived artefacts.
+- Inventory what the top public notebooks attach (`kaggle kernels pull -m` → read
+  `dataset_sources`/`model_sources`): in RSNA Knee every ≥0.949 notebook depended on
+  one checkpoint trained with gated external data, which set the real "clean" ceiling
+  at ~0.944, not 0.95.
+- Public weights trained on *all* training rows leak into your CV if you fine-tune from
+  them: only an untouched expert set and the LB can judge such runs.
+
+## 9. Agentic workflow tips
 
 - Keep a per-competition `CLAUDE.md` with: metric facts, data paths, the LB tracker,
   "what works", and "failed — do NOT retry" with the evidence. It stops re-running
   dead ideas across sessions.
 - Put long-running training/kernels in the background and poll status; download the
   kernel log on any ERROR before theorising.
+- **Background shells die with the agent session.** Run multi-hour queues as systemd
+  user units (`systemd-run --user --unit <name> -p MemoryMax=40G bash queue.sh`, plus
+  `loginctl enable-linger`) and checkpoint every epoch so a killed run resumes. On ZFS,
+  memmapped corpora are cached twice (page cache + ARC) and got training OOM-killed;
+  read with `os.pread` + `posix_fadvise(DONTNEED)` instead.
+- Gate automatic submissions on checks you have validated by hand once; a wrong gate
+  silently skips a good submission (see `kaggle-code-competitions`, rehearsal).

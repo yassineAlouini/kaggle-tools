@@ -84,11 +84,54 @@ kaggle datasets version -p artifacts/ -m "..."    # FIRST: kernels pin dataset v
 kaggle kernels push -p notebooks/my-kernel/
 kaggle kernels status <user>/<slug>                # poll until COMPLETE / ERROR
 kaggle kernels output <user>/<slug> -p /tmp/out/   # always read the log on ERROR
-# Submit from the notebook UI → "Submit to Competition"
-# (`kaggle competitions submit` returns 400 for code competitions)
+# Submit the COMPLETE version from the CLI (works for code competitions, CLI 2.0, 2026-10):
+kaggle competitions submit <comp-slug> -k <user>/<slug> -v <version> -f submission.csv -m "..."
 ```
 
+`-v` is required: without it the CLI answers "Code competition submissions require both
+the output file name and the version number". The version number is printed by
+`kernels push` ("Kernel version N successfully pushed"). The notebook UI button still works.
+
 Or from Python: `kaggle_tools.kernel.push / wait / output`.
+
+## GPU quota, hung kernels and session limits
+
+- Every `kernels push` of a GPU notebook runs it once in save mode, and that run counts
+  against the weekly GPU quota (~30 h). Once it is used up, pushes fail with "Maximum
+  weekly GPU quota of 30.00 hours reached" until the weekly reset (Saturday 00:00 UTC).
+  CPU kernels (preprocessing, corpus builds, audits) do not touch the GPU quota.
+- At most 2 GPU sessions run at once; a third push waits or fails. Retry in a loop.
+- **A hung kernel burns quota for hours.** RSNA Knee 2026: a `multiprocessing.Pool`
+  initializer raised `NameError`; the pool silently respawned workers forever and the
+  save-mode run sat on two T4s until cancelled by hand. Catch everything inside a pool
+  initializer and return the error per item, and start a watchdog thread in any test
+  run (`time.sleep(limit); faulthandler.dump_traceback(); os._exit(3)`).
+- Never `glob("**/...", recursive=True)` over `/kaggle/input` to find your weights:
+  the competition mount may sit under `/kaggle/input/<slug>/` and a recursive walk of
+  ~10^5 DICOMs took 9 minutes of the run. Skip competition mounts explicitly.
+
+## Rehearse the hidden-test run on train data
+
+Before submitting a new model, run the inference code on ~64 training studies posing
+as the test set: build a fake root with `test.csv` and the per-series CSV for those
+ids and a symlink `test_series -> train_series`, point the notebook at it via an env
+var, and time it to extrapolate the hidden-test runtime.
+**Compare against the same ensemble run locally, not against OOF.** Fold models were
+trained on 4/5 of those studies, so a 5-fold average differs from OOF by up to ~0.7
+per prediction; an automatic gate that compared to OOF blocked a correct submission
+(RSNA Knee v3, later 0.940 LB). Against the local 5-fold average the kernel matched to
+max |diff| 0.0099 (fp16 vs bf16).
+
+## Big artefacts: corpora and outputs
+
+- One kernel's `/kaggle/working` output is capped (~20 GB). Shard large preprocessing
+  (e.g. a 96-slice MRI corpus, ~48 GB) across several CPU kernels by interleaved ids
+  (`ids[part::n_parts]`) so each part is a random-ish sample.
+- `kaggle kernels output` truncates multi-GB files without an error. Download from the
+  signed URL with `curl -C -` in a retry loop and check the size against the
+  `Content-Range` total of a 1-byte ranged GET (signed URLs reject HEAD).
+- Build the training corpus with the *same function* the inference kernel uses
+  (copy it verbatim), so train and test preprocessing cannot drift.
 
 ## kernel_sources pitfalls
 
@@ -107,3 +150,5 @@ Or from Python: `kaggle_tools.kernel.push / wait / output`.
 5. Dataset versions pushed *before* the kernel.
 6. Runtime in save mode leaves headroom for the full hidden test.
 7. Record the kernel version in the ledger before submitting.
+8. Rehearsed on train data posing as test (runtime extrapolated, predictions matched
+   against the local ensemble, not OOF); watchdog in place for test runs.
