@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kaggle Leaderboard Analysis"
+  short_description: "Plot leaderboard shifts and competition progress"
+  default_prompt: "Use $kaggle-leaderboard-analysis to plot my top percentage for every Kaggle competition."

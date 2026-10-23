@@ -1,3 +1,11 @@
+# 0.2.0 (2026-10-23)
+
+* Add optional `plots` and `kaggle` extras with generic leaderboard and history commands.
+* Preserve complete pagination and board ranks; detect unverifiable public/private fallbacks.
+* Plot top percentage (`100 * rank / teams`, lower is better) per competition in yearly
+  subplots, with ended-result means and readable multipage PDF/HTML output.
+* Add the `kaggle-leaderboard-analysis` skill for Claude Code and Codex.
+
 # 0.1.0 (2026-09-27)
 
 Complete rewrite for a modern Python stack, based on 2025–2026 competition experience.
