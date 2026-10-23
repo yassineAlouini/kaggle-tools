@@ -151,3 +151,6 @@ Thumbs.db
 *.pickle
 models/
 data/
+
+# Generated leaderboard reports
+reports/

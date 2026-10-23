@@ -1,6 +1,6 @@
 [project]
 name = "kaggle-tools"
-version = "0.1.1"
+version = "0.2.0"
 description = "Battle-tested utilities (and Claude Code skills) for Kaggle competitions"
 authors = [{ name = "Yassine Alouini", email = "yassinealouini@outlook.com" }]
 readme = "README.md"
@@ -28,6 +28,8 @@ dependencies = [
 tracking = ["trackio>=0.30"]
 tune = ["optuna>=4.0"]
 gbdt = ["lightgbm>=4.5", "xgboost>=2.1", "catboost>=1.2"]
+plots = ["matplotlib>=3.8", "plotly>=5.24"]
+kaggle = ["kaggle>=2.0,<3", "kagglesdk>=0.1.15,<1"]
 
 [project.scripts]
 kt = "kaggle_tools.cli:main"
