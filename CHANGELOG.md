@@ -1,3 +1,10 @@
+# 0.1.3 (2026-10-24)
+
+* Add a portable medical-imaging skill and evidence-linked RSNA Knee 5th/22nd-place case study.
+* Extract label calibration, anatomical input, teacher-lineage, site validation and marginal-value lessons.
+* Compare probability/rank blending instead of prescribing rank blending for every AUC ensemble.
+* Document shared preprocessing and feature reuse with prediction-parity and runtime checks.
+
 # 0.1.0 (2026-09-27)
 
 Complete rewrite for a modern Python stack, based on 2025–2026 competition experience.

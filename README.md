@@ -1,6 +1,6 @@
 # kaggle-tools
 
-Small, battle-tested Python utilities **and Claude Code skills** for Kaggle competitions.
+Small, battle-tested Python utilities **and reusable agent skills** for Kaggle competitions.
 
 The code encodes lessons from real competitions (AIMO3, BirdCLEF 2026, ROGII Wellbore
 Geology, NVIDIA Nemotron, Biohub cell tracking, …). Most of them were learned the hard way:
@@ -78,7 +78,7 @@ pinned T4, `/kaggle/input/<comp>/` instead of `/kaggle/input/competitions/<comp>
 `pip install`s. Using `kernel_sources` is reported as **info**: fine for wheels and weights,
 wrong for predictions that must be recomputed on the hidden test.
 
-## Claude Code skills
+## Claude Code and Codex skills
 
 `skills/` ships as a Claude Code plugin:
 
@@ -89,6 +89,7 @@ wrong for predictions that must be recomputed on the hidden test.
 | `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank-blend |
 | `kaggle-llm-reasoning` | AIMO-style: model choice, vLLM, SC-TIR, voting, time budget |
 | `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified CoT data, adapter packaging |
+| `kaggle-medical-imaging` | weak report labels, anatomical inputs, teacher-lineage and site-aware validation |
 | `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
 
 Install:
@@ -97,6 +98,16 @@ Install:
 /plugin marketplace add yassineAlouini/kaggle-tools
 /plugin install kaggle-tools@kaggle-tools
 ```
+
+The [RSNA Knee case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
+extracts evidence from the 5th- and 22nd-place writeups, with ablation limits and
+source links. The medical-imaging skill applies the transferable decisions;
+the playbook and code-competition skill include the validation, blending and
+shared-inference lessons.
+
+For Codex, copy or link a skill directory into `~/.codex/skills`, preserving its
+`references/` directory. These skills use the same `SKILL.md` instructions in
+Claude Code and Codex. The optional `agents/openai.yaml` adds Codex UI metadata.
 
 ## Development
 
