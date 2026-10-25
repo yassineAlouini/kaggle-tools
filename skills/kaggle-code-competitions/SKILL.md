@@ -76,6 +76,31 @@ Kaggle's 2025.4.1).
 - Speed levers: ONNX/OpenVINO instead of TF SavedModel (freed ~10 min on BirdCLEF),
   batched GPU preprocessing, fewer TTA passes.
 
+## Share expensive work before adding stages
+
+- Profile decoding, localization, crop creation and model inference together.
+  Share equivalent preprocessing and intermediate features only where the model
+  inputs/weights permit it; verify prediction parity before relying on the cache.
+- Give each optional stage a deadline (`kaggle_tools.budget.TimeBudget`) and keep
+  the last valid output (`ProgressiveSubmission`). If blending surviving members,
+  renormalize the correct per-finding weights and log omitted components.
+- In the [RSNA Knee solution review](../kaggle-medical-imaging/references/rsna-knee-2026.md),
+  5th place shared preprocessing across model families and early features with
+  fine-tunes (reported 8 h 18 min total); 22nd place shared decoding and overlapped
+  crops with inference. These are examples to profile, not universal speedups or
+  instructions to maximize network count.
+- Keep a manifest binding each checkpoint to its preprocessing, geometry and
+  predictor; verify cold-reload and packaged prediction parity. Distinguish
+  training-only auxiliary heads from retained evidence heads and inference-time
+  detectors. The [RSNA Knee winner](../kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+  used different contracts for its two branches; sharing their inputs blindly
+  would change the deployed models.
+- Measure cold input reads and slow-study tails as well as GPU throughput. The
+  winner's 230-second efficiency rehearsal covered 1,200 training studies, not
+  its final ensemble or a guaranteed hidden-test runtime; reported I/O varied
+  roughly 30 to over 500 MB/s. Restrict series reads only when the model's trained
+  input contract permits it.
+
 ## Push workflow
 
 ```bash
