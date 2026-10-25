@@ -1,5 +1,9 @@
 # RSNA Knee 2026: lessons from 5th and 22nd place
 
+The [first-place extension](rsna-knee-2026-winner.md), reviewed October 25, adds
+both winning teammates' approaches and compares the complete team result with
+the same baseline. The evidence below retains its original two-source scope.
+
 Reviewed 2026-10-24. Scope: two published solution writeups, not the top three.
 Technique, runtime and intermediate-score claims are author-reported and have
 not been reproduced. The reviewed 5th-place post marks code/weights coming soon;

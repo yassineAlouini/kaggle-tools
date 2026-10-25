@@ -70,6 +70,11 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
   [5th/22nd-place review](../kaggle-medical-imaging/references/rsna-knee-2026.md)
   records explicit teacher leakage in 5th place and a larger, still biased teacher
   reference in 22nd place.
+- Keep the validation reference fixed when changing training labels. A reference
+  or fold selected for historical CV–LB correlation is development data, even if
+  predictions are OOF. The RSNA Knee [winner review](../kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+  distinguishes probability-weighted SoftAUC from competition AUC and records
+  selection of one of ten folds using LB history, not ten-fold validation.
 
 ## 4. Choose experiments like a scientist
 
@@ -87,6 +92,12 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
   + rank-blend (+0.011), the right model size (AIMO: GPT-OSS-120B), a novel signal
   (ROGII particle-filter features, −1.48 RMSE CV). Weight sweeps and alpha tuning
   rarely moved the LB.
+- Test whether privileged training information can improve an image-only student:
+  auxiliary report or spatial targets may be removed from inference, while heads
+  that contribute to final logits must remain. RSNA Knee's winning branches used
+  both designs; its combined lesion/report-head ablation does not isolate either
+  head's gain. Check backbone adaptation with matched training budgets before
+  declaring the pretrained representation sufficient (see the winner review).
 - **Read the top public notebooks early and often.** Several of the biggest jumps came
   from forking a strong public notebook and adding one's own edge on top.
 - **When stuck, retreat to understanding** (EDA, error analysis per group/well/species)

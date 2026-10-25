@@ -100,7 +100,8 @@ Install:
 ```
 
 The [RSNA Knee case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
-extracts evidence from the 5th- and 22nd-place writeups, with ablation limits and
+and its [first-place extension](skills/kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+extract evidence from the 1st-, 5th- and 22nd-place writeups, with ablation limits and
 source links. The medical-imaging skill applies the transferable decisions;
 the playbook and code-competition skill include the validation, blending and
 shared-inference lessons.
