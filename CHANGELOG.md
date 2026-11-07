@@ -1,4 +1,4 @@
-# 0.1.2 (2026-10-10)
+# 0.1.4 (2026-11-07)
 
 Helpers for the code-competition lessons added to the skills in 0.1.1 (RSNA Knee 2026).
 
@@ -20,6 +20,15 @@ Helpers for the code-competition lessons added to the skills in 0.1.1 (RSNA Knee
 
 * The `/kaggle/input/<slug>/` path warning now says it is one of the valid competition
   layouts and points to `env.competition_dir`, matching the corrected skill text.
+
+# 0.1.3 (2026-10-25)
+
+* Add a portable medical-imaging skill and evidence-linked RSNA Knee 5th/22nd-place case study.
+* Extract label calibration, anatomical input, teacher-lineage, site validation and marginal-value lessons.
+* Compare probability/rank blending instead of prescribing rank blending for every AUC ensemble.
+* Document shared preprocessing and feature reuse with prediction-parity and runtime checks.
+* Extend the review to both first-place teammates: spatial/privileged supervision,
+  annotation grounding, validation selection, input contracts and cold-I/O budgets.
 
 # 0.1.0 (2026-09-27)
 
