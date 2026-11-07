@@ -8,7 +8,9 @@ description: Use when starting, planning or steering any Kaggle competition — 
 Cross-competition lessons from AIMO3, BirdCLEF 2026, ROGII Wellbore, Nemotron
 reasoning, Biohub cell tracking, March Mania, Stanford RNA 3D and ARC-AGI-3.
 Domain-specific skills: `kaggle-code-competitions`, `kaggle-audio-bioacoustics`,
-`kaggle-llm-reasoning`, `kaggle-llm-finetuning`, `kaggle-tabular`.
+`kaggle-llm-reasoning`, `kaggle-llm-finetuning`, `kaggle-tabular`,
+`kaggle-medical-imaging`. Read the latter for weak report labels, anatomical
+inputs, teacher dependencies and site-held-out evaluation.
 
 ## 1. Before any modelling: read the metric *code*
 
@@ -60,17 +62,42 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
   6 submissions) and the report-label OOF understated a backbone gain by ~3×.
   Treat that six-run correlation as exploratory: selecting a label view repeatedly
   against public LB can overfit it. Preserve an independent holdout for confirmation.
+- **Audit the entire target-generation pipeline.** OOF labels can still expose
+  a student's validation cases through upstream teachers, calibration or target
+  selection. Exclude the outer holdout from each competition-trained dependency.
+  Also distinguish duplicate/patient grouping from unseen-site evaluation;
+  stratifying sites across folds does not hold them out. The RSNA Knee
+  [5th/22nd-place review](../kaggle-medical-imaging/references/rsna-knee-2026.md)
+  records explicit teacher leakage in 5th place and a larger, still biased teacher
+  reference in 22nd place.
+- Keep the validation reference fixed when changing training labels. A reference
+  or fold selected for historical CV–LB correlation is development data, even if
+  predictions are OOF. The RSNA Knee [winner review](../kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+  distinguishes probability-weighted SoftAUC from competition AUC and records
+  selection of one of ten folds using LB history, not ten-fold validation.
 
 ## 4. Choose experiments like a scientist
 
 - **One variable per run.** Two simultaneous changes that regress cannot be
   attributed (Nemotron v28: alpha + lm_head). Isolation pairs (A alone, B alone,
   A+B) found that two BirdCLEF regressions partially cancelled each other.
+- With weak labels, pilot better target definitions and complementary inputs
+  before adding another similar model. Hold training duration fixed when measuring
+  a label change; the reviewed RSNA Knee 5th-place +0.008 private step changed both
+  labels and epochs, while a matched crop step added +0.003 private. See the
+  [case study](../kaggle-medical-imaging/references/rsna-knee-2026.md) for attribution
+  limits and distinct full-context versus restricted-compartment experiments.
 - **Structural levers beat tweaks.** Plateau-breakers were: a better backbone
   (Perch v2, +0.096), a temporal model (ProtoSSM, +0.018), a second complementary arm
   + rank-blend (+0.011), the right model size (AIMO: GPT-OSS-120B), a novel signal
   (ROGII particle-filter features, −1.48 RMSE CV). Weight sweeps and alpha tuning
   rarely moved the LB.
+- Test whether privileged training information can improve an image-only student:
+  auxiliary report or spatial targets may be removed from inference, while heads
+  that contribute to final logits must remain. RSNA Knee's winning branches used
+  both designs; its combined lesion/report-head ablation does not isolate either
+  head's gain. Check backbone adaptation with matched training budgets before
+  declaring the pretrained representation sufficient (see the winner review).
 - **Read the top public notebooks early and often.** Several of the biggest jumps came
   from forking a strong public notebook and adding one's own edge on top.
 - **When stuck, retreat to understanding** (EDA, error analysis per group/well/species)
@@ -82,11 +109,19 @@ Track the ratio `CV/LB` per family of change. Offline gains often do not transfe
 
 ## 5. Ensembling
 
-- For rank metrics (AUC, Spearman), **rank-blend, never score-blend**
-  (`kaggle_tools.ensemble.rank_blend`). Score-blend lets magnitude, not weight, decide.
+- For rank metrics (AUC, Spearman), compare rank blending and probability/score
+  averaging on matched held-out predictions. `kaggle_tools.ensemble.rank_blend`
+  supplies a common scale for differently calibrated arms; it is not universally
+  superior. RSNA Knee 5th place used probability averaging followed by rank stages;
+  22nd used probability averaging (see the
+  [case study](../kaggle-medical-imaging/references/rsna-knee-2026.md)). Re-ranking
+  between stages cannot generally be collapsed into one original-score average.
 - Diversity beats strength: an extra model from the same family (AutoGluon on top
   of LGB/CatBoost/XGB) got a stacking weight of ~0.
 - Fit blend weights on OOF (`hill_climb`), sanity-check on a held-out fold.
+  Choose by marginal ensemble gain under the runtime budget, not correlation
+  alone. Recheck specialists after labels/base models improve; the reviewed RSNA
+  Knee specialists added less on a stronger regional base than on a weaker base.
 - Post-processing tuned for someone else's model rarely transfers to yours.
 
 ## 6. Hyper-parameters

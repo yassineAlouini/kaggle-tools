@@ -121,6 +121,7 @@ for CSV schemas, snapshot dates, and API limitations. Generated reports stay loc
 | `kaggle-llm-serving` | vLLM throughput on 4x L4: TP vs one replica per GPU, fitting a 27B on 24 GB, KV/state capacity, MTP depth, quality gate |
 | `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified CoT data, adapter packaging |
 | `kaggle-leaderboard-analysis` | public/private rank shifts and yearly competition progress reports |
+| `kaggle-medical-imaging` | weak report labels, anatomical inputs, teacher-lineage and site-aware validation |
 | `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
 
 Install:
@@ -130,15 +131,24 @@ Install:
 /plugin install kaggle-tools@kaggle-tools
 ```
 
-For Codex, link the skill from a checkout (or copy the complete skill directory):
+The [RSNA Knee case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
+and its [first-place extension](skills/kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+extract evidence from the 1st-, 5th- and 22nd-place writeups, with ablation limits and
+source links. The medical-imaging skill applies the transferable decisions;
+the playbook and code-competition skill include the validation, blending and
+shared-inference lessons.
+
+For Codex, copy or link a skill directory into `~/.codex/skills`, preserving its
+`references/` directory. These skills use the same `SKILL.md` instructions in
+Claude Code and Codex. The optional `agents/openai.yaml` adds Codex UI metadata.
+For example, from a checkout:
 
 ```bash
 mkdir -p ~/.codex/skills
 ln -s "$PWD/skills/kaggle-leaderboard-analysis" ~/.codex/skills/kaggle-leaderboard-analysis
 ```
 
-Invoke `$kaggle-leaderboard-analysis`. The skill uses the same Python helpers and
-CLI in either agent; optional Codex metadata lives in `agents/openai.yaml`.
+Invoke `$kaggle-leaderboard-analysis`; it uses the same Python helpers and CLI in either agent.
 
 ## Development
 
