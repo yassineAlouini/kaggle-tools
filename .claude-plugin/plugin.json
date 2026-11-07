@@ -1,6 +1,6 @@
 {
   "name": "kaggle-tools",
-  "description": "Kaggle competition skills distilled from AIMO3, BirdCLEF 2026, ROGII, Nemotron and Biohub: playbook, code-competition infra, audio, LLM reasoning, LLM fine-tuning, tabular, leaderboard analysis and competition progress",
+  "description": "Kaggle competition skills distilled from AIMO3, BirdCLEF 2026, ROGII, Nemotron, Biohub and ARC-AGI-2: playbook, code-competition infra, audio, LLM reasoning, LLM serving, LLM fine-tuning, tabular, leaderboard analysis and competition progress",
   "version": "0.2.0",
   "author": {
     "name": "Yassine Alouini",

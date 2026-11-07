@@ -118,6 +118,7 @@ for CSV schemas, snapshot dates, and API limitations. Generated reports stay loc
 | `kaggle-code-competitions` | offline re-runs, paths, wheels, accelerators, time limits, push workflow, pre-submit checklist |
 | `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank-blend |
 | `kaggle-llm-reasoning` | AIMO-style: model choice, vLLM, SC-TIR, voting, time budget |
+| `kaggle-llm-serving` | vLLM throughput on 4x L4: TP vs one replica per GPU, fitting a 27B on 24 GB, KV/state capacity, MTP depth, quality gate |
 | `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified CoT data, adapter packaging |
 | `kaggle-leaderboard-analysis` | public/private rank shifts and yearly competition progress reports |
 | `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
