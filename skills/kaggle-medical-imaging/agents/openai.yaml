@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kaggle Medical Imaging"
+  short_description: "Plan labels, anatomy and validation for imaging"
+  default_prompt: "Use $kaggle-medical-imaging to plan evidence-backed labels, anatomical inputs and validation for this competition."
