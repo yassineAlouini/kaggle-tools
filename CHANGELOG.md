@@ -1,3 +1,26 @@
+# 0.1.4 (2026-11-07)
+
+Helpers for the code-competition lessons added to the skills in 0.1.1 (RSNA Knee 2026).
+
+## New
+
+* `kaggle_tools.runtime`: `watchdog` (native `faulthandler` timeout, always cancelled on
+  exit), `guarded_initializer` / `raise_if_init_failed` (a failing `Pool` initializer is
+  re-raised in the parent instead of respawning workers forever; picklable under
+  `spawn`), `shard_ids` (disjoint, complete shards from one seeded manifest),
+  `rehearsal_root` (training rows posing as the test set, opt-in only).
+* `kaggle_tools.kernel`: `parse_pushed_version`, `submit` (code competitions, `-k`/`-v`
+  required), `remote_size` (1-byte ranged GET, requires HTTP 206 + `Content-Range`),
+  `download_resumable` (bounded `curl --fail --location -C -` resumes, refuses to run
+  without a size or checksum, sha256 verification).
+* `kt check` warns on recursive scans of `/kaggle/input` (glob `recursive=True`,
+  `os.walk`, `Path.rglob`).
+
+## Changed
+
+* The `/kaggle/input/<slug>/` path warning now says it is one of the valid competition
+  layouts and points to `env.competition_dir`, matching the corrected skill text.
+
 # 0.1.3 (2026-10-25)
 
 * Add a portable medical-imaging skill and evidence-linked RSNA Knee 5th/22nd-place case study.

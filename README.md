@@ -32,7 +32,8 @@ Core dependencies are only `numpy`, `pandas` and `scikit-learn`. Optional extras
 | `cv` | `spatial_group_folds` (K-means on entity coordinates); `rare_safe_folds` (stratified-group, rare classes pinned to train, multi-label aware) |
 | `metrics` | `macro_auc` (skips empty columns, like BirdCLEF), `rmse`, `best_threshold` |
 | `budget` | `TimeBudget` for wall-clock-limited notebooks; `@timed` |
-| `kernel` | pre-push lint for `kernel-metadata.json` + notebook source; `push` / `status` / `wait` / `output` wrappers |
+| `kernel` | pre-push lint for `kernel-metadata.json` + notebook source (incl. recursive `/kaggle/input` scans); `push` / `status` / `wait` / `output` wrappers; `parse_pushed_version` + `submit` (code competitions: `-k`/`-v`); `download_resumable` for multi-GB outputs (HTTP 206 size probe, bounded resume, sha256) |
+| `runtime` | in-kernel guards: `watchdog` (native faulthandler timeout, cancelled on exit); `guarded_initializer` + `raise_if_init_failed` (Pool init errors reach the parent instead of hanging); `shard_ids` (one seeded manifest); `rehearsal_root` (train rows posing as test) |
 | `llm` | `extract_integer_answer`, `majority_vote`, inverse-entropy `weighted_vote`, early-stopping `ConsensusVoter` |
 | `audio` | BirdCLEF `row_id` parsing, window ids, `frame_windows` |
 | `features` | `date_features` (tz-aware, cyclical), `oof_target_encode` |
