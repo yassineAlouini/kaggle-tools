@@ -151,3 +151,10 @@ Thumbs.db
 *.pickle
 models/
 data/
+
+# Local credentials and agent settings: never commit
+kaggle.json
+.kaggle/
+.claude/settings.local.json
+.codex/
+*.pem

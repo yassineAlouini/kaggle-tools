@@ -93,12 +93,23 @@ wrong for predictions that must be recomputed on the hidden test.
 | `kaggle-medical-imaging` | weak report labels, anatomical inputs, teacher-lineage and site-aware validation |
 | `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
 
-Install:
+Install in Claude Code (inside a session, or the equivalent `claude plugin ...` shell
+commands):
 
 ```text
 /plugin marketplace add yassineAlouini/kaggle-tools
 /plugin install kaggle-tools@kaggle-tools
+/plugin marketplace update kaggle-tools     # later, to pull new skills
 ```
+
+The skills load on demand when a task matches their description. The plugin contains
+only `SKILL.md` files and Markdown references: no hooks, MCP servers or commands, and
+nothing runs on install (see [SECURITY.md](SECURITY.md)).
+
+**Supported clients.** Claude Code via the plugin above (tested with
+`claude plugin install`). Each `skills/<name>/` folder is a standalone
+[Agent Skill](https://agentskills.io), so clients that read `SKILL.md` folders can use
+it directly, e.g. copy one into `~/.claude/skills/` without the plugin.
 
 The [RSNA Knee case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
 and its [first-place extension](skills/kaggle-medical-imaging/references/rsna-knee-2026-winner.md)

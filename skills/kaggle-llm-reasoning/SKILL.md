@@ -69,6 +69,6 @@ else:
 
 ## Local iteration
 
-Test the loop with a 7–14B model locally (RTX 3090), measure accuracy vs samples
+Test the loop with a 7–14B model on a local 24 GB GPU, measure accuracy vs samples
 and vs time per problem, then scale up on Kaggle. Log per-problem answers, votes and
 timings to spot budget starvation.
