@@ -11,11 +11,20 @@ Every check below corresponds to a real failed or wasted submission:
 * bare ``assert`` / unguarded ``pip install`` -> opaque "Submission Scoring Error" in
   the offline re-run;
 * ``kernel_sources`` used to consume another notebook's *predictions* -> frozen at the
-  parent's last run, never recomputed on the hidden test set.
+  parent's last run, never recomputed on the hidden test set;
+* a recursive glob / ``os.walk`` over ``/kaggle/input`` to find weights -> walked ~10^5
+  DICOMs of the competition mount for 9 minutes (RSNA Knee 2026).
+
+The CLI wrappers at the bottom add what the same competition needed: submitting a
+saved version of a code-competition kernel (``submit``; ``-v`` is mandatory with
+``-k``) and downloading multi-GB outputs that the CLI truncated (``download_resumable``:
+``curl --fail --location -C -`` with bounded retries, a size probe that requires HTTP 206
+and a valid ``Content-Range``, and an optional sha256).
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -40,6 +49,16 @@ _WRITE_CALL = re.compile(
     r"\.to_csv\(|\.to_parquet\(|\.write_csv\(|\.write_parquet\(|ZipFile\(|make_archive\("
 )
 _INFERENCE_SERVER = re.compile(r"kaggle_evaluation|InferenceServer")
+_INPUT_SCAN = re.compile(
+    # glob("/kaggle/input/**", recursive=True)
+    r"""glob\([^\n]*/kaggle/input[^\n]*recursive\s*=\s*True"""
+    r"""|os\.walk\(\s*["']/kaggle/input/?["']"""  # os.walk("/kaggle/input")
+    r"""|["']/kaggle/input/?["']\s*\)\s*\.rglob\("""  # Path("/kaggle/input").rglob(...)
+)
+_PUSHED_VERSION = re.compile(r"[Kk]ernel version (\d+) successfully pushed")
+_CONTENT_RANGE = re.compile(
+    r"^content-range:\s*bytes\s+0-0/(\d+)\s*$", re.IGNORECASE | re.MULTILINE
+)
 TERMINAL_STATES = {"COMPLETE", "ERROR", "CANCEL_ACKNOWLEDGED", "CANCELLED"}
 
 
@@ -150,10 +169,21 @@ def check_source(source: str, competitions: list[str] | None = None) -> list[Fin
             findings.append(
                 Finding(
                     "warning",
-                    f"/kaggle/input/{slug}/ is not where competition data mounts today; use "
-                    f"/kaggle/input/competitions/{slug}/ or kaggle_tools.env.competition_dir",
+                    f"/kaggle/input/{slug}/ is only one of the competition mount layouts "
+                    f"(also /kaggle/input/competitions/{slug}/); resolve it with "
+                    f"kaggle_tools.env.competition_dir instead of hard-coding",
                 )
             )
+    for line in source.splitlines():
+        if _INPUT_SCAN.search(line):
+            findings.append(
+                Finding(
+                    "warning",
+                    "recursive scan of /kaggle/input: the competition mount can hold ~10^5 files "
+                    f"(9 min on RSNA Knee); search attached dataset dirs only: {line.strip()[:80]}",
+                )
+            )
+            break
     if re.search(r"^\s*assert\s", source, flags=re.MULTILINE):
         findings.append(
             Finding("warning", "bare assert: a failure in the re-run is an opaque scoring error")
@@ -248,3 +278,107 @@ def wait(
 def output(kernel_id: str, dest: str | Path) -> str:
     """Download a kernel's output files and log (always read the log after an ERROR)."""
     return _kaggle("kernels", "output", kernel_id, "-p", str(dest))
+
+
+def parse_pushed_version(push_output: str) -> int | None:
+    """Version from ``kaggle kernels push`` output: "Kernel version N successfully pushed"."""
+    match = _PUSHED_VERSION.search(push_output)
+    return int(match.group(1)) if match else None
+
+
+def submit(
+    competition: str,
+    kernel_id: str,
+    version: int,
+    message: str,
+    output_file: str = "submission.csv",
+) -> str:
+    """Submit a saved, COMPLETE kernel version to a code competition.
+
+    ``output_file`` names that version's output, not a local file to upload. Check the
+    version's status and log first (``status``/``output``); submitting the latest
+    version while another push is running can pick the wrong one.
+    """
+    if int(version) < 1:
+        raise ValueError("version must be the pushed kernel version number (>= 1)")
+    return _kaggle(
+        "competitions", "submit", competition,
+        "-k", kernel_id, "-v", str(int(version)), "-f", output_file, "-m", message,
+    )  # fmt: skip
+
+
+def _parse_range_probe(headers: str) -> int | None:
+    """Total size from the headers of a ``Range: bytes=0-0`` GET, or None.
+
+    Requires the final response to be HTTP 206 with ``Content-Range: bytes 0-0/<total>``;
+    a server that ignores Range (200) or omits the header gives None.
+    """
+    blocks = [b for b in re.split(r"\r?\n\r?\n", headers.strip()) if b.strip()]
+    if not blocks:
+        return None
+    last = blocks[-1]
+    status_line = last.splitlines()[0]
+    if not re.match(r"HTTP/\S+\s+206\b", status_line):
+        return None
+    match = _CONTENT_RANGE.search(last)
+    return int(match.group(1)) if match else None
+
+
+def remote_size(url: str, timeout: float = 60) -> int | None:
+    """Size of a remote file via a 1-byte ranged GET (signed URLs often reject HEAD)."""
+    result = subprocess.run(
+        ["curl", "--fail", "--location", "-sS", "-r", "0-0", "-D", "-", "-o", "/dev/null",
+         "--max-time", str(timeout), url],
+        capture_output=True, text=True,
+    )  # fmt: skip
+    return _parse_range_probe(result.stdout) if result.returncode == 0 else None
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def download_resumable(
+    url: str,
+    dest: str | Path,
+    expected_size: int | None = None,
+    sha256: str | None = None,
+    retries: int = 20,
+    wait_seconds: float = 5,
+) -> Path:
+    """Download (and resume) one immutable file until it has the expected size.
+
+    ``expected_size`` defaults to ``remote_size(url)``; without either a size or a
+    checksum the download is refused, because a truncated file would look complete.
+    Raises on a size overshoot (the source changed), a checksum mismatch, or after
+    ``retries`` attempts. Refresh an expired signed URL for the same version, never a
+    different file.
+    """
+    out = Path(dest)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    want = expected_size if expected_size is not None else remote_size(url)
+    if want is None and sha256 is None:
+        raise RuntimeError(
+            "cannot verify completeness: no size (HTTP 206 probe failed) and no sha256"
+        )
+    for _ in range(max(1, retries)):
+        have = out.stat().st_size if out.exists() else 0
+        if want is not None and have > want:
+            raise RuntimeError(f"{out} is larger than expected ({have} > {want}); source changed?")
+        if want is not None and have == want:
+            break
+        subprocess.run(["curl", "--fail", "--location", "-sS", "-C", "-", "-o", str(out), url])
+        if want is None:
+            break
+        if out.exists() and out.stat().st_size < want:
+            time.sleep(wait_seconds)
+    size = out.stat().st_size if out.exists() else 0
+    if want is not None and size != want:
+        raise RuntimeError(f"download incomplete after {retries} attempts: {size}/{want} bytes")
+    if sha256 is not None and _sha256(out) != sha256.lower():
+        raise RuntimeError(f"sha256 mismatch for {out}")
+    return out
