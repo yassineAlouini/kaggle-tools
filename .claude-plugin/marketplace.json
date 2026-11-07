@@ -9,7 +9,7 @@
     {
       "name": "kaggle-tools",
       "description": "Kaggle competition skills: playbook, code-competition infra, audio, LLM reasoning, LLM serving, LLM fine-tuning, tabular, medical imaging, leaderboard analysis and competition progress",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "source": "./",
       "author": {
         "name": "Yassine Alouini"

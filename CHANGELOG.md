@@ -1,3 +1,11 @@
+# 0.2.1 (2026-11-07)
+
+* `kaggle-competition-playbook`: run every long or scheduled job through one local job
+  runner with a web UI (Dagu). New `references/dagu-job-ui.md` covers the
+  localhost-plus-login setup, the systemd service, the per-competition job-file
+  template, agent commands, and migrating systemd timers. `systemd-run` stays as the
+  fallback.
+
 # 0.2.0 (2026-10-23)
 
 * Add optional `plots` and `kaggle` extras with generic leaderboard and history commands.
