@@ -10,8 +10,10 @@ re-run `/plugin marketplace update kaggle-tools` (Claude Code plugin) to pick th
 The Claude Code plugin ships **skills only**: `SKILL.md` instruction files and Markdown
 references. It registers no hooks, MCP servers, slash commands or agents, runs no code on
 install, and reads no credentials. The `kaggle_tools` Python package is separate and only
-runs when you call it; the `kaggle_tools.kernel` helpers shell out to the official `kaggle`
-CLI, which uses your own `~/.kaggle` credentials.
+runs when you call it. Two modules use your own `~/.kaggle` credentials: the
+`kaggle_tools.kernel` helpers shell out to the official `kaggle` CLI, and
+`kaggle_tools.leaderboard` (optional `kaggle` extra) reads leaderboards and your
+competition history through the Kaggle API. Neither stores or sends credentials anywhere else.
 
 ## Reporting a vulnerability
 

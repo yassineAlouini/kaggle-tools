@@ -15,13 +15,13 @@ NVIDIA Nemotron, Biohub cell tracking and ARC-AGI-2.
 
 The repository has two independent parts:
 
-- **[Agent skills](#agent-skills)**: a Claude Code plugin of 8 skills that guide an
+- **[Agent skills](#agent-skills)**: a Claude Code plugin of 9 skills that guide an
   agent through CV design, code-competition submissions, LLM inference and fine-tuning
-  on Kaggle GPUs, and domain-specific pipelines. Recommendations are tied to the
+  on Kaggle GPUs, leaderboard analysis, and domain-specific pipelines. Recommendations are tied to the
   competition results that motivated them.
 - **[Python package](#python-package)**: `kaggle_tools`, small utilities for
   notebooks that must survive Kaggle's offline, time-limited re-runs, plus the `kt`
-  CLI that lints a kernel before you push it.
+  CLI that lints a kernel before you push it and plots leaderboard and progress reports.
 
 ## Agent skills
 
@@ -29,6 +29,7 @@ The repository has two independent parts:
 |---|---|
 | `kaggle-competition-playbook` | reading the metric code, CV design, CV→LB transfer, experiment selection, ensembling, submission quota |
 | `kaggle-code-competitions` | offline re-runs, data paths, wheels, accelerators, time limits, push workflow, pre-submit checklist |
+| `kaggle-leaderboard-analysis` | public/private rank shifts and yearly competition progress reports |
 | `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank blend |
 | `kaggle-llm-reasoning` | AIMO-style math: model choice, vLLM, tool-integrated reasoning, voting, time budget |
 | `kaggle-llm-serving` | vLLM throughput on 4x L4: TP vs one replica per GPU, fitting a 27B on 24 GB, KV/state capacity, MTP depth, quality gate |
@@ -55,8 +56,13 @@ runs on install (see [SECURITY.md](SECURITY.md)).
 [Agent Skill](https://agentskills.io) that any client reading `SKILL.md` folders can use:
 
 - **Claude Code without the plugin**: copy a skill folder into `~/.claude/skills/`.
-- **Codex**: copy or link a skill folder into `~/.codex/skills/`. The optional
-  `agents/openai.yaml` adds Codex UI metadata.
+- **Codex**: copy or link a skill folder into `~/.codex/skills/`, then invoke it as
+  `$<skill-name>`. The optional `agents/openai.yaml` adds Codex UI metadata. From a checkout:
+
+  ```bash
+  mkdir -p ~/.codex/skills
+  ln -s "$PWD/skills/kaggle-leaderboard-analysis" ~/.codex/skills/kaggle-leaderboard-analysis
+  ```
 
 Keep each folder's `references/` directory when copying.
 
@@ -83,6 +89,8 @@ integrations are optional extras, imported only by the functions that need them:
 | `tracking` | [Trackio](https://github.com/gradio-app/trackio) | local-first, wandb-compatible experiment tracking |
 | `tune` | Optuna | hyper-parameter search |
 | `gbdt` | LightGBM, XGBoost, CatBoost | tabular stacks |
+| `plots` | Matplotlib, Plotly | local PNG/SVG/HTML and paginated PDF reports |
+| `kaggle` | Kaggle API and SDK | read-only live leaderboard/account history fetching |
 
 ### Modules
 
@@ -100,6 +108,8 @@ integrations are optional extras, imported only by the functions that need them:
 | `audio` | BirdCLEF `row_id` parsing, window ids, `frame_windows` |
 | `features` | `date_features` (tz-aware, cyclical), `oof_target_encode` |
 | `tracking` | `Ledger`: JSONL submission ledger keyed by Kaggle kernel version, with LB deltas; `trackio_run` |
+| `leaderboard` | complete public/private fetching, ID matching, account history, top percentages |
+| `leaderboard_plots` | public/private scatter + zoom; per-year competition bars, readable multipage PDF and standalone HTML |
 
 ### Example: an inference notebook that always submits
 
@@ -151,10 +161,36 @@ kt ledger submissions.jsonl      # every submission, with delta vs best-so-far
 - **info**: `kernel_sources` in use. Fine for wheels and weights, wrong for predictions
   that must be recomputed on the hidden test.
 
+### Leaderboard reports
+
+Install the optional dependencies with `uv sync --extra plots --extra kaggle`, then:
+
+```bash
+uv run kt leaderboard-plot --competition COMPETITION_SLUG --output reports/leaderboard
+uv run kt competition-progress --include-unranked --output reports/history
+# Saved CSVs need only the plots extra:
+uv run kt leaderboard-plot --public-csv public.csv --private-csv private.csv --output reports/leaderboard
+uv run kt competition-progress --input history.csv --output reports/history
+```
+
+History uses **top percentage = 100 * rank / teams (lower is better)**. Each
+competition keeps its own bar in a yearly subplot, with the mean top percentage
+of ended results in the heading. The PDF packs readable subplots across pages;
+HTML embeds Plotly for offline hover/zoom. CSV/JSON preserve data and provenance.
+The history PNG/SVG shows the yearly overview with competition counts and mean
+top percentages; PDF/HTML also include each competition’s bar.
+Use `--include-unranked` to display entries with no rank as empty, labeled rows.
+Live history always uses the authenticated account, not a supplied display name.
+
+The leaderboard command preserves board positions and matches by team ID; it
+refuses an unverifiable public-board fallback. `--highlight-team` takes a team ID.
+See the [skill input reference](skills/kaggle-leaderboard-analysis/references/inputs.md)
+for CSV schemas, snapshot dates, and API limitations. Generated reports stay local.
+
 ## Development
 
 ```bash
-uv sync                     # creates .venv with dev tools
+uv sync --extra plots --extra kaggle  # .venv with dev tools + report test deps
 uv run pytest
 uv run ruff format . && uv run ruff check .
 uv run ty check src

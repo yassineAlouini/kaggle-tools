@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "kaggle-tools",
-      "description": "Kaggle competition skills: playbook, code-competition infra, audio, LLM reasoning, LLM serving, LLM fine-tuning, tabular, medical imaging",
-      "version": "0.1.4",
+      "description": "Kaggle competition skills: playbook, code-competition infra, audio, LLM reasoning, LLM serving, LLM fine-tuning, tabular, medical imaging, leaderboard analysis and competition progress",
+      "version": "0.2.0",
       "source": "./",
       "author": {
         "name": "Yassine Alouini"
