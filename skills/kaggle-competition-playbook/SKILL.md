@@ -166,6 +166,15 @@ plateaued, use a proxy on the *hard* folds, and use TPE + MedianPruner.
   dead ideas across sessions.
 - Put long-running training/kernels in the background and poll status; download the
   kernel log on any ERROR before theorising.
+- When several competitions and agents share one machine, run every job longer than
+  ~10 minutes, and every scheduled job, through one local job runner with a web UI.
+  Then "what is running and what is planned" is a single page, not a sweep of tmux,
+  `systemctl --user` and per-repo queues. Since 2026-11 the host runs
+  [Dagu](https://github.com/dagucloud/dagu): one job file per job, grouped by
+  competition, with gpu/cpu/light queues and cron schedules. Setup, the job-file
+  template and the agent commands are in
+  [references/dagu-job-ui.md](references/dagu-job-ui.md). If Dagu is not installed,
+  use the `systemd-run` recipe below.
 - Background jobs may be terminated with the agent's execution session. On Linux
   hosts with a systemd user manager, run multi-hour queues as transient services:
   `systemd-run --user --unit <unique-name> --same-dir --service-type=exec /bin/bash /absolute/path/queue.sh`.
