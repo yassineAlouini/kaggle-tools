@@ -19,11 +19,12 @@ per-step logs. It needs no database or message broker.
 1. Install a release that has been out for a few days, and check it against the
    release's `checksums.txt`:
    ```bash
-   V=2.25.8; cd "$(mktemp -d)"
-   gh release download "v$V" -R dagucloud/dagu -p "dagu_${V}_linux_amd64.tar.gz" -p checksums.txt
-   grep " dagu_${V}_linux_amd64.tar.gz\$" checksums.txt | sha256sum -c -
-   tar xzf "dagu_${V}_linux_amd64.tar.gz" dagu
-   mkdir -p ~/.local/bin && install -m755 dagu ~/.local/bin/dagu && dagu version
+   (set -euo pipefail   # a failed checksum stops everything after it
+    V=2.25.8; cd "$(mktemp -d)"
+    gh release download "v$V" -R dagucloud/dagu -p "dagu_${V}_linux_amd64.tar.gz" -p checksums.txt
+    grep " dagu_${V}_linux_amd64.tar.gz\$" checksums.txt | sha256sum -c -
+    tar xzf "dagu_${V}_linux_amd64.tar.gz" dagu
+    mkdir -p ~/.local/bin && install -m755 dagu ~/.local/bin/dagu && ~/.local/bin/dagu version)
    ```
 2. Run `dagu config`. It prints the resolved paths and creates the default XDG layout:
    `~/.config/dagu/{base.yaml,dags/example-*.yaml}`. `dagu --help` and `dagu schema`
@@ -82,7 +83,9 @@ per-step logs. It needs no database or message broker.
    `tailscale serve --bg --https=443 http://127.0.0.1:8080`. This needs Serve enabled
    for the tailnet once. Also set `public_url: https://<host>.<tailnet>.ts.net` in the
    config: without it, logins through the proxy fail with
-   `cross-origin request denied`. Origins that don't match are still rejected
+   `cross-origin request denied`. Dagu reads `public_url` only at startup, so add it
+   before the first start in step 5. If Dagu is already running, restart it as
+   step 6 describes. Origins that don't match are still rejected
    (verified 2026-11-08). Don't use Funnel, which would make it public.
 
 ## Agent recipe (every job longer than ~10 min, and every scheduled job)
@@ -123,8 +126,10 @@ steps:
 2. Run `dagu validate`, then enqueue the job once in a harmless mode. If the job has
    side effects (submits, PRs, messages to other agents), use a dry-run flag. Compare
    its outputs with the timer's last run.
-3. Run `systemctl --user disable --now <timer>`. Check that
-   `systemctl --user is-active <service>` is not `active`, so no run is in progress.
+3. Run `systemctl --user disable --now <timer>`. Disabling the timer does not stop a run
+   that is already going, and a running `Type=oneshot` service reports `activating`,
+   not `active`. Wait until `systemctl --user show -p ActiveState --value <service>`
+   prints `inactive` or `failed`.
    Keep the unit files so the timer can be re-enabled to roll back.
 4. Add `schedule:`. Translate systemd's `OnCalendar` into five-field cron; it can't be
    copied as is. For example, `*-*-* 09:00:00 Europe/Paris` becomes `"0 9 * * *"`, with
