@@ -1,7 +1,7 @@
 [project]
 name = "kaggle-tools"
 version = "0.2.0"
-description = "Battle-tested utilities (and Claude Code skills) for Kaggle competitions"
+description = "Agent skills and Python utilities for Kaggle competitions, built from what went wrong in real ones"
 authors = [{ name = "Yassine Alouini", email = "yassinealouini@outlook.com" }]
 readme = "README.md"
 license = "MIT"

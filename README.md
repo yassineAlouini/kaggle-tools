@@ -1,35 +1,101 @@
 # kaggle-tools
 
-Small, battle-tested Python utilities **and reusable agent skills** for Kaggle competitions.
+[![CI](https://github.com/yassineAlouini/kaggle-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/yassineAlouini/kaggle-tools/actions/workflows/ci.yml)
+[![Plugin scan](https://github.com/yassineAlouini/kaggle-tools/actions/workflows/plugin-scan.yml/badge.svg)](https://github.com/yassineAlouini/kaggle-tools/actions/workflows/plugin-scan.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-The code encodes lessons from real competitions (AIMO3, BirdCLEF 2026, ROGII Wellbore
-Geology, NVIDIA Nemotron, Biohub cell tracking, …). Most of them were learned the hard way:
-silent "Submission Scoring Error"s, timeouts, P100s that current torch can't run,
-offline re-runs without internet, and OOF gains that never reached the leaderboard.
+Agent skills and a small Python library for Kaggle competitions, built from what went
+wrong in real ones.
 
-## Install
+Each piece exists because something failed: a silent "Submission Scoring Error", a
+notebook that timed out on the hidden test, a P100 that current PyTorch can no longer
+run, a re-run without internet, an out-of-fold gain that never reached the leaderboard.
+The lessons come from AIMO3, BirdCLEF 2026, RSNA Knee 2026, ROGII Wellbore Geology,
+NVIDIA Nemotron, Biohub cell tracking and ARC-AGI-2.
+
+The repository has two independent parts:
+
+- **[Agent skills](#agent-skills)**: a Claude Code plugin of 9 skills that guide an
+  agent through CV design, code-competition submissions, LLM inference and fine-tuning
+  on Kaggle GPUs, leaderboard analysis, and domain-specific pipelines. Recommendations are tied to the
+  competition results that motivated them.
+- **[Python package](#python-package)**: `kaggle_tools`, small utilities for
+  notebooks that must survive Kaggle's offline, time-limited re-runs, plus the `kt`
+  CLI that lints a kernel before you push it and plots leaderboard and progress reports.
+
+## Agent skills
+
+| skill | use it for |
+|---|---|
+| `kaggle-competition-playbook` | reading the metric code, CV design, CV→LB transfer, experiment selection, ensembling, submission quota |
+| `kaggle-code-competitions` | offline re-runs, data paths, wheels, accelerators, time limits, push workflow, pre-submit checklist |
+| `kaggle-leaderboard-analysis` | public/private rank shifts and yearly competition progress reports |
+| `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank blend |
+| `kaggle-llm-reasoning` | AIMO-style math: model choice, vLLM, tool-integrated reasoning, voting, time budget |
+| `kaggle-llm-serving` | vLLM throughput on 4x L4: TP vs one replica per GPU, fitting a 27B on 24 GB, KV/state capacity, MTP depth, quality gate |
+| `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified chain-of-thought data, adapter packaging |
+| `kaggle-medical-imaging` | MRI/CT classification: weak report labels, anatomical inputs, teacher lineage, site-aware validation |
+| `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
+
+### Install
+
+In Claude Code (inside a session, or the equivalent `claude plugin ...` shell commands):
+
+```text
+/plugin marketplace add yassineAlouini/kaggle-tools
+/plugin install kaggle-tools@kaggle-tools
+/plugin marketplace update kaggle-tools     # later, to pull new skills
+```
+
+Skills load on demand when a task matches their description. The plugin contains only
+`SKILL.md` files and Markdown references: no hooks, MCP servers or commands, and nothing
+runs on install (see [SECURITY.md](SECURITY.md)).
+
+**Supported clients.** Claude Code through the plugin above (tested with
+`claude plugin install`). Each `skills/<name>/` folder is also a standalone
+[Agent Skill](https://agentskills.io) that any client reading `SKILL.md` folders can use:
+
+- **Claude Code without the plugin**: copy a skill folder into `~/.claude/skills/`.
+- **Codex**: copy or link a skill folder into `~/.codex/skills/`, then invoke it as
+  `$<skill-name>`. The optional `agents/openai.yaml` adds Codex UI metadata. From a checkout:
+
+  ```bash
+  mkdir -p ~/.codex/skills
+  ln -s "$PWD/skills/kaggle-leaderboard-analysis" ~/.codex/skills/kaggle-leaderboard-analysis
+  ```
+
+Keep each folder's `references/` directory when copying.
+
+### Case studies
+
+The [RSNA Knee 2026 case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
+and its [first-place extension](skills/kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
+extract evidence from the 1st-, 5th- and 22nd-place writeups, with ablation limits and
+source links. The medical-imaging skill applies the transferable decisions; the playbook
+and code-competition skills carry the validation, blending and shared-inference lessons.
+
+## Python package
 
 ```bash
 uv add git+https://github.com/yassineAlouini/kaggle-tools        # or: pip install git+...
 uv add "kaggle-tools[tracking,tune,gbdt] @ git+https://github.com/yassineAlouini/kaggle-tools"
 ```
 
-Core dependencies are only `numpy`, `pandas` and `scikit-learn`. Optional extras:
+Python 3.11+. Core dependencies are only `numpy`, `pandas` and `scikit-learn`; heavier
+integrations are optional extras, imported only by the functions that need them:
 
 | extra | adds | for |
 |---|---|---|
-| `plots` | Matplotlib, Plotly | local PNG/SVG/HTML and paginated PDF reports |
-| `kaggle` | Kaggle API and SDK | read-only live leaderboard/account history fetching |
 | `tracking` | [Trackio](https://github.com/gradio-app/trackio) | local-first, wandb-compatible experiment tracking |
 | `tune` | Optuna | hyper-parameter search |
 | `gbdt` | LightGBM, XGBoost, CatBoost | tabular stacks |
+| `plots` | Matplotlib, Plotly | local PNG/SVG/HTML and paginated PDF reports |
+| `kaggle` | Kaggle API and SDK | read-only live leaderboard/account history fetching |
 
-## What's inside
+### Modules
 
 | module | highlights |
 |---|---|
-| `leaderboard` | complete public/private fetching, ID matching, account history, top percentages |
-| `leaderboard_plots` | public/private scatter + zoom; per-year competition bars, readable multipage PDF and standalone HTML |
 | `env` | `competition_dir` / `dataset_dir` resolve every `/kaggle/input` mount layout; `is_competition_rerun`; `install_offline_wheels` (fails loudly instead of silently degrading) |
 | `submission` | `ProgressiveSubmission` keeps a valid file on disk after every stage (atomic writes; a stage's output only replaces the file if the stage finishes, failing stages are logged and skipped); vectorised `build_submission`; `validate_submission` |
 | `ensemble` | `rank_blend` (per-column percentile ranks, for AUC-like metrics); `hill_climb` (Caruana greedy weights) |
@@ -42,8 +108,15 @@ Core dependencies are only `numpy`, `pandas` and `scikit-learn`. Optional extras
 | `audio` | BirdCLEF `row_id` parsing, window ids, `frame_windows` |
 | `features` | `date_features` (tz-aware, cyclical), `oof_target_encode` |
 | `tracking` | `Ledger`: JSONL submission ledger keyed by Kaggle kernel version, with LB deltas; `trackio_run` |
+| `leaderboard` | complete public/private fetching, ID matching, account history, top percentages |
+| `leaderboard_plots` | public/private scatter + zoom; per-year competition bars, readable multipage PDF and standalone HTML |
 
-### A robust inference notebook
+### Example: an inference notebook that always submits
+
+A valid submission is on disk from the first line, and each stage only replaces it if
+the stage finishes. If the second model crashes, or the time budget says it would not
+finish, the notebook still submits the first. (A notebook that hits Kaggle's hard time
+limit is not scored at all, which is why the budget check skips stages up front.)
 
 ```python
 import pandas as pd
@@ -76,14 +149,19 @@ kt validate submission.csv sample_submission.csv
 kt ledger submissions.jsonl      # every submission, with delta vs best-so-far
 ```
 
-`kt check` flags internet enabled on a competition kernel and a missing `code_file` as
-**errors** (exit 1). It **warns** (exit 1 only with `--strict`) about a GPU kernel without a
-pinned T4, `/kaggle/input/<comp>/` instead of `/kaggle/input/competitions/<comp>/`, no
-`submission.csv`/`.parquet`/`.zip` write (inference-server notebooks are exempt), bare `assert`s and online
-`pip install`s. Using `kernel_sources` is reported as **info**: fine for wheels and weights,
-wrong for predictions that must be recomputed on the hidden test.
+`kt check` reports three levels:
 
-## Leaderboard reports
+- **error** (exit 1): internet enabled on a competition kernel, a missing `code_file`,
+  malformed `id` or source slugs.
+- **warning** (exit 1 only with `--strict`): a GPU kernel without a pinned T4 (the default
+  P100 is unsupported by current PyTorch), a hard-coded `/kaggle/input/<comp>/` path
+  instead of `env.competition_dir`, no `submission.csv`/`.parquet`/`.zip` write
+  (inference-server notebooks are exempt), recursive scans of `/kaggle/input`, bare
+  `assert`s and online `pip install`s.
+- **info**: `kernel_sources` in use. Fine for wheels and weights, wrong for predictions
+  that must be recomputed on the hidden test.
+
+### Leaderboard reports
 
 Install the optional dependencies with `uv sync --extra plots --extra kaggle`, then:
 
@@ -109,57 +187,21 @@ refuses an unverifiable public-board fallback. `--highlight-team` takes a team I
 See the [skill input reference](skills/kaggle-leaderboard-analysis/references/inputs.md)
 for CSV schemas, snapshot dates, and API limitations. Generated reports stay local.
 
-## Claude Code and Codex skills
-
-`skills/` ships as a Claude Code plugin:
-
-| skill | use it for |
-|---|---|
-| `kaggle-competition-playbook` | reading the metric code, CV design, CV→LB transfer, experiment selection, ensembling, quota |
-| `kaggle-code-competitions` | offline re-runs, paths, wheels, accelerators, time limits, push workflow, pre-submit checklist |
-| `kaggle-audio-bioacoustics` | BirdCLEF-style soundscapes: Perch embeddings + probes + temporal model + rank-blend |
-| `kaggle-llm-reasoning` | AIMO-style: model choice, vLLM, SC-TIR, voting, time budget |
-| `kaggle-llm-serving` | vLLM throughput on 4x L4: TP vs one replica per GPU, fitting a 27B on 24 GB, KV/state capacity, MTP depth, quality gate |
-| `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified CoT data, adapter packaging |
-| `kaggle-leaderboard-analysis` | public/private rank shifts and yearly competition progress reports |
-| `kaggle-medical-imaging` | weak report labels, anatomical inputs, teacher-lineage and site-aware validation |
-| `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
-
-Install:
-
-```text
-/plugin marketplace add yassineAlouini/kaggle-tools
-/plugin install kaggle-tools@kaggle-tools
-```
-
-The [RSNA Knee case study](skills/kaggle-medical-imaging/references/rsna-knee-2026.md)
-and its [first-place extension](skills/kaggle-medical-imaging/references/rsna-knee-2026-winner.md)
-extract evidence from the 1st-, 5th- and 22nd-place writeups, with ablation limits and
-source links. The medical-imaging skill applies the transferable decisions;
-the playbook and code-competition skill include the validation, blending and
-shared-inference lessons.
-
-For Codex, copy or link a skill directory into `~/.codex/skills`, preserving its
-`references/` directory. These skills use the same `SKILL.md` instructions in
-Claude Code and Codex. The optional `agents/openai.yaml` adds Codex UI metadata.
-For example, from a checkout:
-
-```bash
-mkdir -p ~/.codex/skills
-ln -s "$PWD/skills/kaggle-leaderboard-analysis" ~/.codex/skills/kaggle-leaderboard-analysis
-```
-
-Invoke `$kaggle-leaderboard-analysis`; it uses the same Python helpers and CLI in either agent.
-
 ## Development
 
 ```bash
-uv sync --extra plots --extra kaggle  # includes report test dependencies
+uv sync --extra plots --extra kaggle  # .venv with dev tools + report test deps
 uv run pytest
 uv run ruff format . && uv run ruff check .
 uv run ty check src
+claude plugin validate .    # after editing .claude-plugin/ or skills/
 uvx pre-commit install
 ```
+
+New utilities and skills follow the same rule as the rest of the repo: tie each one to
+the competition failure it prevents, and back every "works" or "doesn't work" claim with
+evidence (competition, version, leaderboard delta). See [CLAUDE.md](CLAUDE.md) for the
+conventions.
 
 ## License
 

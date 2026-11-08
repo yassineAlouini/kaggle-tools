@@ -48,7 +48,7 @@ From ROGII wellbore geology (RMSE, LB 15.9 → 8.05), March Mania and others.
 
 ## Train locally, infer on Kaggle
 
-- Train the heavy stack locally (RTX 3090: ~1.5 h vs 8 h on Kaggle), upload artifacts
+- Train the heavy stack locally (one 24 GB consumer GPU: ~1.5 h vs 8 h on Kaggle), upload artifacts
   as a dataset, keep the Kaggle kernel inference-only (26 min). Expect a tiny LB drift
   from different hardware/float order.
 - Ship data (arrays, context sets), not device-bound pickles. For in-context models
