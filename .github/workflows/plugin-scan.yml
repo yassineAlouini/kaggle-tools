@@ -1,0 +1,33 @@
+# Scores the Claude Code plugin (manifests, skills, CI hygiene) with the HOL plugin scanner.
+# Read-only token, no secrets, no network probing, nothing reported to third parties.
+# Guide: https://github.com/hashgraph-online/awesome-ai-plugins/blob/main/SCANNER_GUIDE.md
+name: Plugin scan
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: hashgraph-online/ai-plugin-scanner-action@9b169fc65d09b24726b66d70b3563ab563158b58 # v1.2.816
+        with:
+          plugin_dir: "."
+          min_score: 75
+          fail_on_severity: none
+          publish_hint: "false"
+          pr_comment: "off"

@@ -1,3 +1,10 @@
+# Local credentials and agent settings: never commit
+kaggle.json
+.kaggle/
+.claude/settings.local.json
+.codex/
+*.pem
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
