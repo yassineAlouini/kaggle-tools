@@ -22,7 +22,7 @@ import faulthandler
 import os
 import random
 import sys
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -33,7 +33,7 @@ _INIT_ERROR: dict[str, BaseException] = {}
 
 
 @contextmanager
-def watchdog(seconds: float, file: Any = None) -> Iterator[None]:
+def watchdog(seconds: float, file: Any = None) -> Generator[None]:
     """Dump every thread's traceback and exit the process if the block runs too long.
 
     Forced exit skips cleanup and does not kill child processes; use an external

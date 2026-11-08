@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import time
 import traceback
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -110,7 +110,7 @@ class ProgressiveSubmission:
             self.last_stage = "manual"
 
     @contextmanager
-    def stage(self, name: str) -> Iterator[None]:
+    def stage(self, name: str) -> Generator[None]:
         if self._in_stage:
             raise RuntimeError("stages cannot be nested")
         start = time.perf_counter()

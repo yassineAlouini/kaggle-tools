@@ -5,7 +5,17 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-_DATE_PARTS = ("year", "month", "day", "dayofweek", "dayofyear", "hour", "minute")
+# output column suffix -> pandas accessor (pandas 3.1 deprecates `dayofweek`/`dayofyear`;
+# the column names stay the same for existing pipelines)
+_DATE_PARTS = {
+    "year": "year",
+    "month": "month",
+    "day": "day",
+    "dayofweek": "day_of_week",
+    "dayofyear": "day_of_year",
+    "hour": "hour",
+    "minute": "minute",
+}
 
 
 def date_features(
@@ -22,13 +32,13 @@ def date_features(
     if tz is not None:
         ts = (ts.dt.tz_localize("UTC") if ts.dt.tz is None else ts).dt.tz_convert(tz)
     out = df.copy()
-    for part in _DATE_PARTS:
-        out[f"{col}_{part}"] = getattr(ts.dt, part)
+    for part, accessor in _DATE_PARTS.items():
+        out[f"{col}_{part}"] = getattr(ts.dt, accessor)
     out[f"{col}_week"] = ts.dt.isocalendar().week.astype("Int32")  # nullable: NaT-safe
-    out[f"{col}_is_weekend"] = (ts.dt.dayofweek >= 5).astype("Int8").mask(ts.isna())
+    out[f"{col}_is_weekend"] = (ts.dt.day_of_week >= 5).astype("Int8").mask(ts.isna())
     if cyclical:
         for part, period in (("month", 12), ("dayofweek", 7), ("hour", 24)):
-            angle = 2 * np.pi * getattr(ts.dt, part) / period
+            angle = 2 * np.pi * getattr(ts.dt, _DATE_PARTS[part]) / period
             out[f"{col}_{part}_sin"] = np.sin(angle)
             out[f"{col}_{part}_cos"] = np.cos(angle)
     return out
