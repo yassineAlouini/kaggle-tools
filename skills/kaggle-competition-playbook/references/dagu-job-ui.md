@@ -16,15 +16,28 @@ per-step logs. It needs no database or message broker.
 
 ## Setup (once per host)
 
-1. Install a release that has been out for a few days and check the release's
-   `checksums.txt`:
-   `gh release download vX.Y.Z -R dagucloud/dagu -p 'dagu_*_linux_amd64.tar.gz' -p checksums.txt`,
-   then `sha256sum -c`, then `install -m755 dagu ~/.local/bin/`.
-2. Any first `dagu` command creates `~/.config/dagu/{base.yaml,dags/example-*.yaml}`.
-   Delete the examples. `base.yaml` defaults to `overlap_policy: skip` and
-   `catchup_window: "6h"`: after downtime, missed cron runs inside that window are
-   replayed.
-3. Write `~/.config/dagu/config.yaml`. Dagu runs arbitrary shell commands, so bind it to
+1. Install a release that has been out for a few days, and check it against the
+   release's `checksums.txt`:
+   ```bash
+   V=2.25.8; cd "$(mktemp -d)"
+   gh release download "v$V" -R dagucloud/dagu -p "dagu_${V}_linux_amd64.tar.gz" -p checksums.txt
+   grep " dagu_${V}_linux_amd64.tar.gz\$" checksums.txt | sha256sum -c -
+   tar xzf "dagu_${V}_linux_amd64.tar.gz" dagu
+   mkdir -p ~/.local/bin && install -m755 dagu ~/.local/bin/dagu && dagu version
+   ```
+2. Run `dagu config`. It prints the resolved paths and creates the default XDG layout:
+   `~/.config/dagu/{base.yaml,dags/example-*.yaml}`. `dagu --help` and `dagu schema`
+   create nothing. Delete the examples. `base.yaml` defaults to
+   `overlap_policy: skip` and `catchup_window: "6h"`: after downtime, missed cron runs
+   inside that window are replayed.
+3. Create the two secret files. Dagu refuses to start if a configured `*_file` is
+   missing or empty.
+   ```bash
+   (umask 077
+    python3 -c 'import secrets; print(secrets.token_urlsafe(18))' > ~/.config/dagu/admin_password
+    python3 -c 'import secrets; print(secrets.token_urlsafe(48))' > ~/.config/dagu/jwt_secret)
+   ```
+4. Write `~/.config/dagu/config.yaml`. Dagu runs arbitrary shell commands, so bind it to
    localhost and keep a login on:
    ```yaml
    host: 127.0.0.1
@@ -36,7 +49,7 @@ per-step logs. It needs no database or message broker.
    auth:
      mode: builtin
      builtin:
-       initial_admin: {username: admin, password_file: ~/.config/dagu/admin_password}  # chmod 600
+       initial_admin: {username: admin, password_file: ~/.config/dagu/admin_password}
        token: {secret_file: ~/.config/dagu/jwt_secret, ttl: 720h}
    queues:
      enabled: true
@@ -46,7 +59,7 @@ per-step logs. It needs no database or message broker.
        - {name: light, max_concurrency: 8}   # Kaggle API polls, small scripts
    ```
    Write absolute paths in the file; the `~` above is shorthand.
-4. Create the systemd user service `~/.config/systemd/user/dagu.service`. Set an
+5. Create the systemd user service `~/.config/systemd/user/dagu.service`. Set an
    explicit `PATH`, because the user manager's environment has no conda.
    `KillMode=process` keeps running jobs alive across a Dagu restart.
    ```ini
@@ -65,9 +78,9 @@ per-step logs. It needs no database or message broker.
 
 ```yaml
 # ~/.config/dagu/dags/<competition>-<job>.yaml
-description: <what it does and why: one line>
+description: "<what it does and why: one line>"  # quote it: an unquoted ': ' breaks the YAML
 group: <competition>                 # one group per competition in the UI
-tags: [<competition>, train]         # train | infer | eval | kaggle-api | scheduled
+tags: [<competition>, train]         # a-z 0-9 - _ . only; train | infer | eval | kaggle-api
 queue: gpu                           # gpu | cpu | light
 working_dir: /abs/path/to/<competition>
 timeout_sec: 36000
@@ -94,12 +107,19 @@ steps:
 ## Migrating a systemd timer
 
 1. Copy `WorkingDirectory`, `ExecStart`, the environment and the timeout into a job file.
-   The `OnCalendar` value becomes `schedule:`.
-2. Enqueue it once in a harmless mode. If the job has side effects (submits, PRs,
-   messages to other agents), use a dry-run flag. Compare its outputs with the timer's
-   last run.
-3. Run `systemctl --user disable --now <timer>`. Keep the unit files so the timer can be
-   re-enabled to roll back.
+   **Leave `schedule:` out for now.** Dagu reloads changed job files, so a schedule
+   would go live during testing, while the timer is still enabled.
+2. Run `dagu validate`, then enqueue the job once in a harmless mode. If the job has
+   side effects (submits, PRs, messages to other agents), use a dry-run flag. Compare
+   its outputs with the timer's last run.
+3. Run `systemctl --user disable --now <timer>`. Check that
+   `systemctl --user is-active <service>` is not `active`, so no run is in progress.
+   Keep the unit files so the timer can be re-enabled to roll back.
+4. Add `schedule:`. Translate systemd's `OnCalendar` into five-field cron; it can't be
+   copied as is. For example, `*-*-* 09:00:00 Europe/Paris` becomes `"0 9 * * *"`, with
+   `tz: Europe/Paris` in the config. The inherited `catchup_window: "6h"` replays
+   missed runs. Set `catchup_window: ""` in the job if the timer already ran today and
+   a replay would duplicate it. Validate again.
 
 ## What it does not cover
 
