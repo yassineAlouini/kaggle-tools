@@ -19,13 +19,13 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.26",
-    "pandas>=2.2",
+    "pandas>=3.1.1",
     "scikit-learn>=1.5",
 ]
 
 [project.optional-dependencies]
 # Optional integrations. The core package never imports these at module level.
-tracking = ["trackio>=0.30"]
+tracking = ["trackio>=0.45.0"]
 tune = ["optuna>=4.0"]
 gbdt = ["lightgbm>=4.5", "xgboost>=2.1", "catboost>=1.2"]
 plots = ["matplotlib>=3.8", "plotly>=5.24"]
@@ -42,15 +42,15 @@ Changelog = "https://github.com/yassineAlouini/kaggle-tools/blob/master/CHANGELO
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3",
+    "pytest>=9.2.0",
     "pytest-cov>=6.0",
-    "ruff>=0.16",
-    "ty>=0.0.1a20",
-    "pre-commit>=4.0",
+    "ruff>=0.17.3",
+    "ty>=0.0.97",
+    "pre-commit>=4.7.0",
 ]
 
 [build-system]
-requires = ["uv_build>=0.8,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]
