@@ -61,18 +61,29 @@ per-step logs. It needs no database or message broker.
    Write absolute paths in the file; the `~` above is shorthand.
 5. Create the systemd user service `~/.config/systemd/user/dagu.service`. Set an
    explicit `PATH`, because the user manager's environment has no conda.
-   `KillMode=process` keeps running jobs alive across a Dagu restart.
    ```ini
    [Service]
    ExecStart=%h/.local/bin/dagu start-all --config %h/.config/dagu/config.yaml
    Environment=PATH=%h/.local/bin:%h/miniconda3/envs/kaggle/bin:/usr/local/bin:/usr/bin:/bin
    Restart=on-failure
-   KillMode=process
    [Install]
    WantedBy=default.target
    ```
    Run `systemctl --user enable --now dagu`. Check that lingering is on
    (`loginctl show-user $USER -p Linger`) so the service runs without a login session.
+6. **Restarting Dagu kills every running job.** Each run is a child `dagu retry`
+   process, and the server stops its children when it shuts down; `KillMode=process`
+   does not prevent it. On 2026-11-08 a config-only restart killed two Enveda
+   submit-queue jobs that were sleeping until their submission day. Before
+   `systemctl --user restart dagu`, check that `dagu ps` is empty, or note the runs and
+   re-enqueue them afterwards. The killed runs keep showing `Running` in
+   `dagu status` until the zombie detector clears them.
+7. Optional: reach the UI from your other devices without exposing it, using
+   `tailscale serve --bg --https=443 http://127.0.0.1:8080`. This needs Serve enabled
+   for the tailnet once. Also set `public_url: https://<host>.<tailnet>.ts.net` in the
+   config: without it, logins through the proxy fail with
+   `cross-origin request denied`. Origins that don't match are still rejected
+   (verified 2026-11-08). Don't use Funnel, which would make it public.
 
 ## Agent recipe (every job longer than ~10 min, and every scheduled job)
 
