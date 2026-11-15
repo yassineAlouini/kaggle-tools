@@ -1,6 +1,6 @@
 [project]
 name = "kaggle-tools"
-version = "0.2.1"
+version = "1.0.0"
 description = "Agent skills and Python utilities for Kaggle competitions, built from what went wrong in real ones"
 authors = [{ name = "Yassine Alouini", email = "yassinealouini@outlook.com" }]
 readme = "README.md"
@@ -9,7 +9,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.11"
 keywords = ["kaggle", "machine-learning", "data-science", "competition"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
