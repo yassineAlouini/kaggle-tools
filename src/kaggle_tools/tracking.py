@@ -95,6 +95,6 @@ def trackio_run(project: str, config: dict[str, Any] | None = None, **kwargs: An
     trackio.finish()``. Offline on Kaggle it logs locally; copy the files out of
     ``/kaggle/working`` if you want to keep them.
     """
-    import trackio  # ty: ignore[unresolved-import]
+    import trackio  # ty: ignore[import-not-found]
 
     return trackio.init(project=project, config=config or {}, **kwargs)
