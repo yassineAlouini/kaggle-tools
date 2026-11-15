@@ -44,8 +44,8 @@ Changelog = "https://github.com/yassineAlouini/kaggle-tools/blob/master/CHANGELO
 dev = [
     "pytest>=9.2.0",
     "pytest-cov>=6.0",
-    "ruff>=0.17.3",
-    "ty>=0.0.97",
+    "ruff>=0.17.4",
+    "ty>=0.0.101",
     "pre-commit>=4.7.0",
 ]
 
