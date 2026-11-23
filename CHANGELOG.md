@@ -1,3 +1,11 @@
+# 1.1.0 (unreleased)
+
+- New skill `kaggle-llm-evolution`: AlphaEvolve-style loops (LLM-written search programs scored by an exact
+  verifier), with evidence from Google Quantum AI VQCC: the loop rebuilt the known best GF(2^n) multiplier ranks
+  (24 / 42 / 99) where a hand-written flip-graph search stalled, and failed where the target sat on a counting
+  bound. Covers program contracts, islands and lineage, calibration gates, counting bounds, shared LLM quota and
+  live W&B tracking.
+
 # 1.0.0 (2026-11-15)
 
 The first stable release of the modern kaggle-tools: **nine agent skills**, a

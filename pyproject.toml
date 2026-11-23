@@ -1,6 +1,6 @@
 [project]
 name = "kaggle-tools"
-version = "1.0.0"
+version = "1.1.0"
 description = "Agent skills and Python utilities for Kaggle competitions, built from what went wrong in real ones"
 authors = [{ name = "Yassine Alouini", email = "yassinealouini@outlook.com" }]
 readme = "README.md"
