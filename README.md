@@ -15,7 +15,7 @@ NVIDIA Nemotron, Biohub cell tracking and ARC-AGI-2.
 
 The repository has two independent parts:
 
-- **[Agent skills](#agent-skills)**: a Claude Code plugin of 9 skills that guide an
+- **[Agent skills](#agent-skills)**: a Claude Code plugin of 10 skills that guide an
   agent through CV design, code-competition submissions, LLM inference and fine-tuning
   on Kaggle GPUs, leaderboard analysis, and domain-specific pipelines. Recommendations are tied to the
   competition results that motivated them.
@@ -36,6 +36,7 @@ The repository has two independent parts:
 | `kaggle-llm-finetuning` | LoRA/SFT on Kaggle: TRL/PEFT, packing, verified chain-of-thought data, adapter packaging |
 | `kaggle-medical-imaging` | MRI/CT classification: weak report labels, anatomical inputs, teacher lineage, site-aware validation |
 | `kaggle-tabular` | GBDT + TabICL stacks, spatial CV, feature ablations, local training → Kaggle inference |
+| `kaggle-llm-evolution` | AlphaEvolve-style loops: LLM-written search programs scored by an exact verifier, islands, calibration on known optima, counting-bound dead-end checks, shared quota |
 
 ### Install
 
