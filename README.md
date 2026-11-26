@@ -91,6 +91,7 @@ integrations are optional extras, imported only by the functions that need them:
 | `gbdt` | LightGBM, XGBoost, CatBoost | tabular stacks |
 | `plots` | Matplotlib, Plotly | local PNG/SVG/HTML and paginated PDF reports |
 | `kaggle` | Kaggle API and SDK | read-only live leaderboard/account history fetching |
+| `runpod` | RunPod SDK | `kt runpod`: one batch job on a rented GPU pod (needs `ssh`/`scp` and an SSH key in the account) |
 
 ### Modules
 
@@ -110,6 +111,7 @@ integrations are optional extras, imported only by the functions that need them:
 | `tracking` | `Ledger`: JSONL submission ledger keyed by Kaggle kernel version, with LB deltas; `trackio_run` |
 | `leaderboard` | complete public/private fetching, ID matching, account history, top percentages |
 | `leaderboard_plots` | public/private scatter + zoom; per-year competition bars, readable multipage PDF and standalone HTML |
+| `runpod_job` | one job on a rented RunPod GPU pod from a TOML spec: budget check against a floor, GPU-type cycling for thin stock, a pod-side dead man's switch, upload / setup / run / pull, `NPROC` from the cgroup quota, explicit DONE/FAILED flags, terminate in `finally` with an API check, a cost ledger; only pods under a name prefix are touched |
 
 ### Example: an inference notebook that always submits
 
@@ -147,6 +149,7 @@ kt init-kernel notebooks/my-kernel --id me/my-kernel --competition birdclef-2026
 kt check notebooks/*/            # lint before `kaggle kernels push`
 kt validate submission.csv sample_submission.csv
 kt ledger submissions.jsonl      # every submission, with delta vs best-so-far
+kt runpod run job.toml --dry-run # budget + plan for a RunPod job; without --dry-run it runs it
 ```
 
 `kt check` reports three levels:
