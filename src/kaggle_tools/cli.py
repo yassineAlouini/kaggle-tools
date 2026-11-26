@@ -4,6 +4,8 @@ kt check <kernel_dir>...        lint kernel-metadata.json + notebook before push
 kt init-kernel <dir> --id user/slug --competition slug [--cpu]
 kt validate <submission.csv> <sample_submission.csv>
 kt ledger [submissions.jsonl]   print the submission ledger
+kt runpod run <job.toml> [--dry-run]   run one job on a RunPod GPU pod (needs the runpod extra)
+kt runpod ls [--prefix kt-]            list your pods under a name prefix
 """
 
 from __future__ import annotations
@@ -18,6 +20,25 @@ import pandas as pd
 from kaggle_tools import kernel
 from kaggle_tools.submission import validate_submission
 from kaggle_tools.tracking import Ledger
+
+
+def _runpod_run(args: argparse.Namespace) -> int:
+    from kaggle_tools import runpod_job
+
+    try:
+        status = runpod_job.run(runpod_job.load_spec(args.job), dry_run=args.dry_run)
+    except RuntimeError as exc:  # refused budget, no stock, failed setup: the pod is already gone
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    return 0 if status in ("done", "dry-run") else 1
+
+
+def _runpod_ls(args: argparse.Namespace) -> int:
+    from kaggle_tools import runpod_job
+
+    for p in runpod_job.list_own_pods(args.prefix):
+        print(p.get("id"), p.get("name"), p.get("desiredStatus"), p.get("costPerHr"))
+    return 0
 
 
 def _check(args: argparse.Namespace) -> int:
@@ -162,6 +183,16 @@ def main(argv: list[str] | None = None) -> int:
         "--include-unranked", action="store_true", help="also display empty unranked rows"
     )
     p.set_defaults(func=_competition_progress)
+
+    p = sub.add_parser("runpod", help="run one job on a RunPod GPU pod (runpod extra)")
+    rsub = p.add_subparsers(dest="runpod_cmd", required=True)
+    q = rsub.add_parser("run", help="create the pod, run the job, pull outputs, terminate")
+    q.add_argument("job", type=Path, help="job TOML file (see kaggle_tools.runpod_job)")
+    q.add_argument("--dry-run", action="store_true", help="budget check and plan only")
+    q.set_defaults(func=_runpod_run)
+    q = rsub.add_parser("ls", help="list your pods under a name prefix")
+    q.add_argument("--prefix", default="kt-")
+    q.set_defaults(func=_runpod_ls)
 
     args = parser.parse_args(argv)
     try:

@@ -1,3 +1,17 @@
+# Unreleased
+
+## `runpod_job` and `kt runpod`: one batch job on a rented GPU pod
+
+`kaggle_tools.runpod_job` runs one job from a TOML spec on a RunPod pod and makes sure the pod
+never outlives it: a pod-side dead man's switch (removes the pod after `max_hours`, or soon after the
+job writes `DONE`/`FAILED`), termination in `finally` (`SIGTERM` included) confirmed through the API,
+and a budget check that refuses to launch when the balance minus the worst case would fall below a
+floor. It cycles GPU types with minimal vCPU/memory filters (thin secure-cloud stock), exports the
+cgroup vCPU share as `NPROC`, ends on explicit flags rather than log tails, pulls outputs while it
+runs, and appends a cost row per pod. Only pods under a name prefix are created, listed or removed.
+`kt runpod run job.toml [--dry-run]` and `kt runpod ls`. New optional extra: `runpod`.
+Generalised from a launcher used for a GPU fine-tune that a busy local GPU could not take.
+
 # 1.0.0 (2026-11-15)
 
 The first stable release of the modern kaggle-tools: **nine agent skills**, a
